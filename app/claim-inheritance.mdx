@@ -1,0 +1,109 @@
+---
+title: "Claiming an inheritance"
+description: "How heirs discover and claim their share from a Heirloom vault."
+---
+
+This page is for **designated heirs** — people whose Stacks address has been registered as a beneficiary in a Heirloom vault. As an heir, you do not need to create a vault or interact with it until it becomes claimable.
+
+## Prerequisites
+
+- A Leather or Xverse wallet installed and funded (you will pay a small transaction fee).
+- Your Stacks address must be registered as an heir in at least one vault.
+- The vault must be in **Claimable** state (the owner's heartbeat interval and grace period have both expired).
+
+## Connecting your wallet
+
+Navigate to [http://localhost:5173/claim](http://localhost:5173/claim). If your wallet is not already connected, click **Connect Wallet** in the navbar and select your wallet. See [Wallet integration](/app/wallet-integration) for setup details.
+
+Once connected, the page uses your Stacks address to automatically search for vaults where you are listed as an heir.
+
+## Auto-discovery
+
+After connecting, the claim page scans recent `create-vault` contract transactions via the Hiro API to find vaults that include your address as a beneficiary. This happens automatically — no manual input required.
+
+**What auto-discovery scans:**
+
+- Recent contract transactions of type `create-vault` on the Heirloom contract.
+- For each vault found, it calls `getHeirInfo` to check whether your address is a registered heir.
+
+**What it shows:**
+
+Each discovered vault appears as a **Vault Card** with the following information:
+
+| Field | Description |
+|-------|-------------|
+| **Owner address** | Stacks principal of the vault creator. |
+| **Vault status** | Current state: Active, Grace, Claimable, or Distributed. |
+| **Your share** | Your percentage allocation in this vault. |
+| **sBTC amount** | Your calculated share of the vault's sBTC balance. |
+| **USDCx amount** | Your calculated share of the vault's USDCx balance. |
+| **Claim button** | Enabled only when vault status is Claimable. |
+
+<Note>
+  Auto-discovery covers recent transactions. If the vault was created a long time ago and does not appear, use the Manual Lookup section to find it by the owner's address.
+</Note>
+
+## When you can claim
+
+The **Claim** button on a vault card is enabled only when the vault is in **Claimable** state. A vault reaches Claimable state when:
+
+1. The owner's heartbeat interval expires (no heartbeat was sent in time), **and**
+2. The grace period also expires without a heartbeat.
+
+If a vault card shows **Active** or **Grace** status, the owner is still alive and/or the grace period has not run out. You cannot claim yet — the status will update when the state changes.
+
+## Claiming your share
+
+<Steps>
+  <Step title="Locate the vault card">
+    Find the vault card for the vault you want to claim from. Confirm the status shows **Claimable** and verify your sBTC and USDCx amounts are correct.
+  </Step>
+
+  <Step title="Click Claim">
+    Click the **Claim** button on the vault card. Your wallet opens a signing dialog for the `claimInheritance` transaction.
+  </Step>
+
+  <Step title="Approve in your wallet">
+    Review the transaction details in the Leather or Xverse signing dialog and approve it. The transaction is broadcast to the Stacks network.
+  </Step>
+
+  <Step title="Wait for confirmation">
+    The page shows a progress indicator while the transaction confirms on-chain. Once confirmed, your share of sBTC and USDCx is transferred to your wallet address.
+  </Step>
+
+  <Step title="View transaction details">
+    After claiming, the page displays the transaction hash with a link to the Stacks Explorer so you can verify the transfer.
+  </Step>
+</Steps>
+
+<Warning>
+  You can only claim once per vault. Once your `claimInheritance` transaction confirms, your share has been transferred and the claim cannot be repeated.
+</Warning>
+
+## Manual lookup
+
+If auto-discovery does not find a vault you expect to be in, use the **Manual Lookup** section:
+
+1. Enter the vault owner's Stacks address (`SP...`) in the lookup field.
+2. Click **Search**.
+3. The page calls `lookupSingleVault` with the owner's address and your connected address.
+4. If you are a registered heir, the vault card appears with the same information as auto-discovered vaults.
+
+Manual lookup is useful for vaults created before the auto-discovery window, or if you know the owner's address directly.
+
+## How distribution works
+
+Each heir claims independently — you do not need to coordinate with other beneficiaries. When the **last remaining heir** submits their claim, the vault automatically transitions to **Distributed** state and is permanently closed on-chain.
+
+The order in which heirs claim does not affect the amounts received. Each heir receives their configured percentage of the vault balance at the time of claiming.
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="layout-dashboard" href="/app/dashboard">
+    Vault owner controls: heartbeats, status monitoring, and emergency withdrawal.
+  </Card>
+  <Card title="Wallet integration" icon="wallet" href="/app/wallet-integration">
+    Set up Leather or Xverse before claiming.
+  </Card>
+</CardGroup>

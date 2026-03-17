@@ -1,0 +1,108 @@
+---
+title: "The heartbeat mechanism"
+description: "How periodic on-chain transactions keep your vault locked and your heirs informed."
+---
+
+A heartbeat is a signed on-chain transaction that resets your vault's countdown timer. As long as you keep sending heartbeats before the interval expires, your vault stays locked and your heirs cannot claim it.
+
+## How it works
+
+Every vault tracks a single timestamp: `last-heartbeat`. When you call the `heartbeat()` function, the contract sets `last-heartbeat` to the current Stacks block time and nothing else changes.
+
+```clarity heartbeat function
+(define-public (heartbeat)
+  (let ((vault (unwrap! (map-get? vaults tx-sender) ERR-VAULT-NOT-FOUND)))
+    (asserts! (not (get is-distributed vault)) ERR-VAULT-DISTRIBUTED)
+    (map-set vaults tx-sender (merge vault { last-heartbeat: stacks-block-time }))
+    (ok true)
+  )
+)
+```
+
+The elapsed time driving vault state is always computed as:
+
+```
+elapsed = current stacks-block-time - last-heartbeat
+```
+
+When elapsed exceeds your configured heartbeat interval, the vault moves from **active** to **grace**. When elapsed exceeds the full deadline (interval + grace period + any guardian bonus), the vault becomes **claimable**.
+
+## Why `stacks-block-time`
+
+The contract uses `stacks-block-time`, a Clarity 4 built-in that returns the timestamp of the current Stacks block anchored to Bitcoin. This has two important properties:
+
+- **Bitcoin-finalized**: the timestamp is tied to a Bitcoin block that has been mined and confirmed. It cannot be faked by a validator or miner on Stacks alone.
+- **Not manipulable by the owner**: you cannot send a transaction with a forged timestamp to extend your vault artificially.
+
+<Note>
+Because `stacks-block-time` follows Bitcoin block cadence (~10 minutes), your vault's elapsed time updates in ~10-minute increments rather than continuously. In practice this does not matter for day-scale heartbeat intervals.
+</Note>
+
+## Choosing your heartbeat interval
+
+The heartbeat interval is configured when you create the vault and can range from **1 to 365 days**.
+
+| Interval | Best for |
+|----------|----------|
+| 30 days | Active users who check in monthly |
+| 90 days | Quarterly review cadence |
+| 180 days | Semi-annual check-in |
+| 365 days | Maximum flexibility; one heartbeat per year |
+
+<Tip>
+Set your interval longer than you think you need. If you travel, face an illness, or simply forget, a longer interval gives you more time to recover before the grace period begins. You can always heartbeat early — there is no penalty for sending more heartbeats than necessary.
+</Tip>
+
+<Warning>
+Do not set your interval to a very short duration (e.g., 1–7 days) unless you have automated heartbeats configured. Missing a short-interval heartbeat can trigger the grace period unexpectedly.
+</Warning>
+
+## Sending a heartbeat from the Dashboard
+
+<Steps>
+  <Step title="Open your vault">
+    Navigate to the Dashboard and select your vault from the vault list.
+  </Step>
+  <Step title="Check your countdown">
+    The vault overview shows the time remaining before your interval expires. If the status is **active**, your vault is healthy.
+  </Step>
+  <Step title="Click Heartbeat">
+    Press the **Send Heartbeat** button. Your connected wallet will prompt you to sign and broadcast the transaction.
+  </Step>
+  <Step title="Confirm on-chain">
+    Once the transaction is confirmed (typically 1–2 Bitcoin blocks), the countdown resets. The Dashboard updates `last-heartbeat` and recalculates your remaining time.
+  </Step>
+</Steps>
+
+## What happens if you miss a heartbeat
+
+If elapsed time exceeds your heartbeat interval, the vault transitions automatically:
+
+1. **Grace period begins**: the vault enters the `grace` state. Heirs can see the vault is overdue but cannot claim yet.
+2. **Guardian can pause**: if you have a guardian set, they may extend the deadline by 30 days during the grace period.
+3. **Claimable**: once the full deadline passes, each heir can call `claim()` independently to receive their share.
+
+The state transition is computed on every read — no transaction triggers it. The vault becomes claimable the moment the on-chain clock passes the deadline.
+
+## Recovery: heartbeating after a missed interval
+
+You can send a heartbeat at any point as long as the vault has **not been fully distributed**. This means:
+
+- You can recover from the **grace** state by sending a heartbeat before the deadline.
+- You can recover from the **claimable** state by sending a heartbeat before any heir has claimed their share (or before all shares are claimed).
+- Once the vault is **distributed** (all shares claimed or emergency withdraw executed), heartbeat is blocked by `ERR-VAULT-DISTRIBUTED`.
+
+<Warning>
+If even one heir has already claimed their share, the vault may be partially distributed. Recovery is still possible if not all heirs have claimed, but the unclaimed portions remain claimable. Communicate with your heirs if you recover from a claimable state.
+</Warning>
+
+## Continue reading
+
+<Columns cols={2}>
+  <Card title="Vault lifecycle" icon="rotate" href="/how-it-works/vault-lifecycle">
+    Understand all four vault states and how transitions occur.
+  </Card>
+  <Card title="Guardian system" icon="shield" href="/how-it-works/guardian-system">
+    Learn how a trusted guardian can extend your deadline during an emergency.
+  </Card>
+</Columns>

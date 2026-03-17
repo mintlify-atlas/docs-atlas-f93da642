@@ -1,0 +1,129 @@
+---
+title: "Testing"
+description: "Running the Heirloom contract test suite with Vitest and Clarinet SDK."
+---
+
+The Heirloom test suite validates the smart contract logic against a local simnet environment. All 23 tests run in-process using the Clarinet SDK — no external network connection is required.
+
+## Test stack
+
+| Tool | Role |
+|------|------|
+| [Vitest](https://vitest.dev) | Test runner and assertion framework |
+| `vitest-environment-clarinet` | Provides Clarinet simnet as a Vitest environment |
+| `@stacks/clarinet-sdk` | TypeScript bindings to call Clarity contract functions |
+| `@stacks/transactions` | Constructs and parses Stacks transactions in tests |
+
+The test file lives at `tests/heirloom-vault.test.ts`.
+
+## Running tests
+
+```bash
+# Run all tests once
+npm test
+
+# Watch mode — re-runs on changes to tests/ or contracts/
+npm run test:watch
+
+# With coverage and execution costs report
+npm run test:report
+```
+
+<Tip>
+  Use `npm run test:report` when optimizing contract function costs. It outputs per-function execution costs alongside test results, which is useful before deploying to testnet.
+</Tip>
+
+## Simnet environment
+
+Clarinet automatically provisions a local simnet when the test suite runs. The simnet:
+
+- Pre-funds all test accounts with STX
+- Deploys the `heirloom-vault.clar` contract from `contracts/`
+- Caches external contract dependencies (sBTC, USDCx) so tests run offline
+- Uses `deployments/default.simnet-plan.yaml` for the deployment configuration
+
+No additional setup is required beyond `npm install`.
+
+## Test accounts
+
+The following accounts are available in the simnet environment. Their roles are fixed across the test suite:
+
+| Account | Role |
+|---------|------|
+| `deployer` | Contract deployer; acts as the vault owner in all test scenarios |
+| `wallet_1` | Heir 1 — receives 70% of vault assets in the default test configuration |
+| `wallet_2` | Heir 2 — receives 30% of vault assets in the default test configuration |
+| `wallet_3` | Guardian — can extend the heartbeat grace period |
+
+Account addresses and initial balances are defined in `settings/Devnet.toml`.
+
+## Test coverage
+
+The suite contains 23 tests organized by feature area:
+
+<AccordionGroup>
+  <Accordion title="Vault creation (5 tests)">
+    - Valid vault creation with heirs and split percentages
+    - Rejection of invalid split configurations (percentages must sum to 100)
+    - Prevention of duplicate vault creation by the same owner
+    - Vault creation with an optional guardian address
+    - Re-creation of a vault after assets have been fully distributed
+  </Accordion>
+
+  <Accordion title="Deposits (2 tests)">
+    - sBTC deposit with correct balance tracking
+    - USDCx deposit with correct balance tracking
+  </Accordion>
+
+  <Accordion title="Heartbeat (3 tests)">
+    - Successful heartbeat timer reset by the vault owner
+    - Rejection of heartbeat calls from non-owner accounts
+    - Rejection of heartbeat calls on a vault that has already been distributed
+  </Accordion>
+
+  <Accordion title="Claims (4 tests)">
+    - Heir claiming their proportional share after the heartbeat period expires
+    - Correct share calculation based on configured split percentages
+    - Rejection of claim attempts from non-heir addresses
+    - Prevention of double-claiming by the same heir
+    - Auto-distribution trigger when the final heir claims
+  </Accordion>
+
+  <Accordion title="Emergency withdrawal (3 tests)">
+    - Full asset return to the owner on emergency withdrawal
+    - Vault marked as cancelled after withdrawal
+    - Verification of post-withdrawal contract state
+  </Accordion>
+
+  <Accordion title="Guardian pause (3 tests)">
+    - Grace period extension when the guardian triggers a pause
+    - Rejection of pause calls from non-guardian accounts
+    - Prevention of double-pause within the same grace window
+  </Accordion>
+
+  <Accordion title="Heir updates (2 tests)">
+    - Successful update of heir split percentages by the vault owner
+    - Rejection of invalid split configurations during updates
+  </Accordion>
+
+  <Accordion title="Status queries (3 tests)">
+    - Computed vault state verification (active, claimable, distributed, cancelled)
+    - Heir info lookup returning correct address and share data
+    - Heir list query returning all configured heirs
+  </Accordion>
+</AccordionGroup>
+
+## What's being tested
+
+Each test exercises public contract functions defined in `contracts/heirloom-vault.clar`. For a full list of available functions and their parameters, see [Public functions](/contract/public-functions).
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="Deployment" icon="cloud-arrow-up" href="/development/deployment">
+    Deploy the contract to testnet or mainnet after all tests pass.
+  </Card>
+  <Card title="Environment variables" icon="sliders" href="/development/environment-variables">
+    Update the frontend to point to a newly deployed contract.
+  </Card>
+</Columns>

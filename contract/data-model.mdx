@@ -1,0 +1,99 @@
+---
+title: "Data model"
+description: "The on-chain data structures used by the Heirloom vault contract."
+---
+
+The contract stores all persistent state in four Clarity maps and uses a small set of constants for shared values.
+
+## Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `BASIS-POINTS` | `u10000` | Denominator for split percentages. A value of `u500` means 5%. |
+| `GUARDIAN-PAUSE-BONUS` | `u2592000` | Seconds (30 days) added to the claimable deadline when a guardian invokes `guardian-pause`. |
+| `SBTC-CONTRACT` | `ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token` | Canonical sBTC SIP-010 token contract. |
+| `USDCX-CONTRACT` | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx` | Canonical USDCx SIP-010 token contract. |
+
+## Maps
+
+### vaults
+
+One entry per owner principal. This is the primary vault record.
+
+```clarity
+(define-map vaults
+  principal
+  {
+    heartbeat-interval: uint,
+    grace-period: uint,
+    last-heartbeat: uint,
+    sbtc-balance: uint,
+    usdcx-balance: uint,
+    guardian: (optional principal),
+    guardian-pause-used: bool,
+    is-distributed: bool,
+    created-at: uint,
+    heir-count: uint,
+    claims-count: uint,
+  }
+)
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `heartbeat-interval` | `uint` | Seconds the owner has between heartbeats before the grace period starts. |
+| `grace-period` | `uint` | Seconds after a missed heartbeat before the vault becomes claimable. |
+| `last-heartbeat` | `uint` | Unix timestamp (seconds) of the most recent heartbeat or vault creation. |
+| `sbtc-balance` | `uint` | Current sBTC balance held by the contract for this vault, in satoshis. |
+| `usdcx-balance` | `uint` | Current USDCx balance held by the contract for this vault, in micro-units. |
+| `guardian` | `(optional principal)` | Optional address permitted to invoke `guardian-pause` once. |
+| `guardian-pause-used` | `bool` | Whether the guardian has already used their one-time pause. |
+| `is-distributed` | `bool` | Set to `true` when the vault is fully distributed or emergency-withdrawn. |
+| `created-at` | `uint` | Unix timestamp of vault creation. |
+| `heir-count` | `uint` | Number of registered heirs (mirrors the length of the heir-list). |
+| `claims-count` | `uint` | Number of heirs who have successfully claimed. When equal to `heir-count`, the vault is fully distributed. |
+
+### heirs
+
+Stores the split allocation for each (owner, heir) pair.
+
+```clarity
+(define-map heirs
+  { owner: principal, heir: principal }
+  { split-bps: uint }
+)
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `split-bps` | `uint` | This heir's share in basis points (out of `10000`). The sum across all heirs for a given owner must equal exactly `u10000`. |
+
+### heir-list
+
+An ordered list of up to 10 heir principals for a given owner. Used to iterate over heirs during distribution.
+
+```clarity
+(define-map heir-list
+  principal
+  (list 10 principal)
+)
+```
+
+The maximum of 10 heirs is a Clarity list-length constraint. If you need to change heirs, call `update-heirs` — it replaces the entire list atomically.
+
+### heir-claimed
+
+Tracks whether a specific heir has already claimed from a vault.
+
+```clarity
+(define-map heir-claimed
+  { owner: principal, heir: principal }
+  bool
+)
+```
+
+A value of `true` means the heir has claimed. Attempting to claim again returns `ERR-ALREADY-CLAIMED` (`u105`).
+
+## State derivation
+
+The vault state (`active`, `grace`, `claimable`, `distributed`) is never written to the map. It is computed on every read from `last-heartbeat`, `heartbeat-interval`, `grace-period`, `guardian-pause-used`, and `is-distributed`. See [read-only functions](/contract/read-only-functions) for how `get-vault-status` performs this calculation.

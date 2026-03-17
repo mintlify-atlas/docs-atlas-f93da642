@@ -1,0 +1,123 @@
+---
+title: "Create a vault"
+description: "Step-by-step guide to setting up your Heirloom inheritance vault."
+---
+
+The vault creation wizard walks you through four steps: configuring timing parameters, adding heirs, making an optional initial deposit, and confirming the transaction on-chain.
+
+Navigate to [http://localhost:5173/create](http://localhost:5173/create) or click **Create Vault** from the landing page. You must have a wallet connected before proceeding.
+
+## Wizard walkthrough
+
+<Steps>
+  <Step title="Step 0 — Parameters">
+    Set the two timing parameters that control your vault's heartbeat cycle.
+
+    | Parameter | Description | Recommended |
+    |-----------|-------------|-------------|
+    | **Heartbeat interval** | How often you must send a proof-of-life signal (1–365 days) | 30 days |
+    | **Grace period** | Additional time heirs must wait after a missed heartbeat before claiming (1–365 days) | 7 days |
+
+    **How to choose:**
+
+    - The **heartbeat interval** determines how frequently you must log in and send a heartbeat. A 30-day interval is a practical default — long enough that it's not burdensome, short enough to catch issues quickly.
+    - The **grace period** gives you a buffer if you miss a heartbeat (travel, illness, connectivity issues). A 7-day grace period provides a safety window while keeping the vault responsive.
+    - Shorter intervals and grace periods mean faster inheritance resolution but require more active monitoring.
+    - Longer intervals reduce maintenance burden but delay heirs longer in an emergency.
+
+    <Tip>
+      Set a calendar reminder for a few days before your heartbeat interval expires. For a 30-day interval, schedule a monthly reminder on day 25.
+    </Tip>
+  </Step>
+
+  <Step title="Step 1 — Heirs">
+    Add the Stacks addresses of your beneficiaries and specify how assets should be split.
+
+    **Adding heirs:**
+
+    1. Enter each heir's Stacks address in `SP...` format (Stacks principal).
+    2. Assign a whole-number percentage to each heir.
+    3. All percentages must sum to exactly **100%**.
+    4. You can add up to **10 heirs**.
+
+    **Percentage allocation example:**
+
+    | Heir address | Allocation |
+    |---|---|
+    | `SP1ABC...` | 60% |
+    | `SP2DEF...` | 40% |
+
+    **Optional guardian:**
+
+    You may designate a guardian address. The guardian can pause the vault once — useful if you are temporarily incapacitated and need to prevent a premature claim while you recover. The guardian does not receive any assets.
+
+    <Warning>
+      Double-check every heir address before proceeding. Stacks addresses are case-sensitive. If you enter an incorrect address, you will need to call `updateHeirs` after vault creation to correct it — the vault cannot be edited during the wizard.
+    </Warning>
+  </Step>
+
+  <Step title="Step 2 — Deposit">
+    Fund your vault with sBTC, USDCx, or both. This step is optional at creation time — you can deposit from the Dashboard later.
+
+    | Token | Description |
+    |-------|-------------|
+    | **sBTC** | Synthetic Bitcoin on Stacks. Value fluctuates with BTC price. |
+    | **USDCx** | Dollar-stable token on Stacks. Value pegged to USD. |
+
+    Enter the amounts you want to lock into the vault. Both fields accept decimal values.
+
+    **Depositing later:**
+
+    If you prefer to review the vault first, click **Skip** or leave both fields at zero. The vault is created without funds and you can add sBTC and USDCx from the Dashboard at any time.
+
+    <Note>
+      USDCx is useful for providing heirs with a predictable dollar-denominated portion of the inheritance, separate from the more volatile sBTC component.
+    </Note>
+  </Step>
+
+  <Step title="Step 3 — Review and confirm">
+    The final step displays a full summary before submitting anything on-chain.
+
+    **Review the summary:**
+
+    - Heartbeat interval and grace period
+    - List of heirs with their percentage allocations
+    - Guardian address (if set)
+    - Deposit amounts for sBTC and USDCx
+
+    If anything looks wrong, use the **Back** button to return to the relevant step.
+
+    **Confirming:**
+
+    1. Click **Confirm and Create Vault**.
+    2. Your wallet opens a signing dialog — review and approve the `create-vault` transaction.
+    3. The wizard polls for on-chain confirmation every 5 seconds and displays a progress indicator.
+    4. Once the vault is confirmed, any deposit transactions are submitted automatically (one per token).
+    5. After all transactions confirm, you are redirected to the **Dashboard**.
+
+    <Note>
+      The create-vault transaction and deposit transactions are separate on-chain calls. If a deposit transaction fails after the vault is created, you can re-deposit from the Dashboard — the vault itself remains intact.
+    </Note>
+  </Step>
+</Steps>
+
+## After creation
+
+Once redirected to the Dashboard, your vault is in **Active** state. The countdown timer starts from your chosen heartbeat interval. Send your first heartbeat before the timer reaches zero to keep the vault active.
+
+See [Dashboard](/app/dashboard) for a full explanation of vault states and the heartbeat workflow.
+
+<Note>
+  After a vault has fully distributed (all heirs have claimed), you can create a new vault from the same Stacks address. The previous vault is closed on-chain and does not interfere with the new one.
+</Note>
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="layout-dashboard" href="/app/dashboard">
+    Monitor your vault, send heartbeats, and manage emergency controls.
+  </Card>
+  <Card title="Wallet integration" icon="wallet" href="/app/wallet-integration">
+    Connect Leather or Xverse before creating a vault.
+  </Card>
+</CardGroup>

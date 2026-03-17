@@ -1,0 +1,92 @@
+---
+title: "Error codes"
+description: "All error codes returned by the Heirloom vault contract."
+---
+
+All errors are returned as `(err uint)` response values. The contract never throws — callers should always check for an error response before treating a transaction as successful.
+
+## Full error table
+
+| Code | Constant | Meaning |
+|------|----------|---------|
+| `u101` | `ERR-NOT-HEIR` | Caller is not a registered heir for this vault |
+| `u102` | `ERR-NOT-GUARDIAN` | Caller is not the vault's designated guardian |
+| `u103` | `ERR-VAULT-NOT-FOUND` | No vault exists for the specified owner principal |
+| `u104` | `ERR-VAULT-NOT-CLAIMABLE` | Vault has not yet reached claimable state |
+| `u105` | `ERR-ALREADY-CLAIMED` | Heir has already claimed their share from this vault |
+| `u106` | `ERR-INVALID-SPLITS` | Heir splits do not sum to `10000`, or no heirs were provided |
+| `u109` | `ERR-VAULT-ALREADY-EXISTS` | The calling principal already has an active vault |
+| `u110` | `ERR-VAULT-DISTRIBUTED` | Vault has already been fully distributed or emergency-withdrawn |
+| `u111` | `ERR-GUARDIAN-PAUSE-USED` | Guardian has already exercised their one-time pause |
+| `u112` | `ERR-NOT-IN-GRACE` | Vault is not currently in the grace period |
+| `u113` | `ERR-NO-BALANCE` | Deposit amount must be greater than zero |
+
+---
+
+## Per-error guidance
+
+### u101 — ERR-NOT-HEIR
+
+**When you see it:** Calling `claim` with a principal that was not registered as an heir when the vault was created (or after the most recent `update-heirs`).
+
+**How to resolve:** Verify the claiming address matches one of the entries returned by `get-heir-list`. If the heir was added after the vault became claimable, the claim is still valid — re-check the address for typos.
+
+### u102 — ERR-NOT-GUARDIAN
+
+**When you see it:** Calling `guardian-pause` from an address that is not the vault's `guardian` field.
+
+**How to resolve:** Confirm that the vault was created with a guardian (check `get-vault-status` — the `guardian` field will be `none` if none was set) and that you are signing from the correct address.
+
+### u103 — ERR-VAULT-NOT-FOUND
+
+**When you see it:** Any function that accepts a vault owner principal when no vault has been created for that principal, or the principal is incorrect.
+
+**How to resolve:** Call `get-vault-status` first. If it returns this error, the owner has not created a vault yet or the principal address is wrong.
+
+### u104 — ERR-VAULT-NOT-CLAIMABLE
+
+**When you see it:** Calling `claim` before the vault's full deadline has elapsed (`heartbeat-interval + grace-period + optional guardian-pause-bonus`).
+
+**How to resolve:** Use `get-vault-status` to read `seconds-until-claimable`. Wait until that value returns `u0`.
+
+### u105 — ERR-ALREADY-CLAIMED
+
+**When you see it:** An heir calls `claim` a second time after a successful first claim.
+
+**How to resolve:** Each heir can only claim once. Check `get-heir-info` — if `has-claimed` is `true`, no further action is needed; the transfer already occurred.
+
+### u106 — ERR-INVALID-SPLITS
+
+**When you see it:** Calling `create-vault` or `update-heirs` where the `split-bps` values across all heirs do not add up to exactly `u10000`, or the heirs list is empty.
+
+**How to resolve:** Ensure your split values sum to `10000`. For example, three equal heirs would each receive `u3333`, `u3333`, and `u3334` (total = `10000`).
+
+### u109 — ERR-VAULT-ALREADY-EXISTS
+
+**When you see it:** Calling `create-vault` when the transaction sender already has an active vault.
+
+**How to resolve:** Each principal can only have one vault at a time. Call `emergency-withdraw` to close the existing vault before creating a new one.
+
+### u110 — ERR-VAULT-DISTRIBUTED
+
+**When you see it:** Attempting to deposit, heartbeat, or update heirs on a vault that has been fully distributed or emergency-withdrawn.
+
+**How to resolve:** The vault lifecycle is complete. Create a new vault if needed.
+
+### u111 — ERR-GUARDIAN-PAUSE-USED
+
+**When you see it:** The guardian calls `guardian-pause` a second time.
+
+**How to resolve:** The guardian pause is a one-time action. There is no way to extend the deadline a second time via this mechanism. The owner's only option at this point is to send a `heartbeat` (if no heir has claimed yet).
+
+### u112 — ERR-NOT-IN-GRACE
+
+**When you see it:** The guardian calls `guardian-pause` when the vault is still `active` (the heartbeat interval has not yet elapsed) or already `claimable` (both heartbeat interval and grace period have elapsed).
+
+**How to resolve:** `guardian-pause` is only valid while the vault is in the `grace` state. Check `get-vault-status` and retry when `state` equals `"grace"`.
+
+### u113 — ERR-NO-BALANCE
+
+**When you see it:** Calling `deposit-sbtc` or `deposit-usdcx` with an `amount` of `u0`.
+
+**How to resolve:** Pass a positive integer amount. Deposits of zero are rejected to avoid unnecessary transactions.

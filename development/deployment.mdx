@@ -1,0 +1,181 @@
+---
+title: "Deployment"
+description: "Deploying the Heirloom smart contract to simnet, testnet, or mainnet."
+---
+
+Heirloom uses [Clarinet](https://docs.hiro.so/clarinet) to manage contract deployments across three environments: simnet (local testing), testnet, and mainnet. Each environment has a corresponding configuration in `settings/` and a deployment plan in `deployments/`.
+
+<Warning>
+  Contract names on Stacks are permanent. Once a contract is deployed under a given name, that name cannot be reused or overwritten — on any network. Always use a new versioned name (e.g. `heirloom-vault-v11`, `heirloom-vault-v12`) for each new deployment, and update `VITE_CONTRACT_NAME` in `heirloom-app/.env` after deploying.
+</Warning>
+
+## Deployment targets
+
+<Tabs>
+  <Tab title="Simnet">
+    Simnet runs entirely in-process during the test suite. No configuration or manual deployment step is required.
+
+    ```bash
+    # Simnet is provisioned automatically when you run tests
+    npm test
+    ```
+
+    Clarinet reads `deployments/default.simnet-plan.yaml` and deploys the contract to a fresh local simnet before each test run. Pre-funded accounts from `settings/Devnet.toml` are available immediately.
+
+    <Note>
+      Simnet state is reset between test runs. Any state you write in one run does not persist to the next.
+    </Note>
+  </Tab>
+
+  <Tab title="Testnet">
+    The current testnet deployment is live at:
+
+    ```
+    STZJWVYSKRYV1XBGS8BZ4F81E32RHBREQSE5WAJM.heirloom-vault-v10
+    ```
+
+    To deploy a new version:
+
+    <Steps>
+      <Step title="Configure your deployer mnemonic">
+        Open `settings/Testnet.toml` and set your deployer's seed phrase and STX address:
+
+        ```toml settings/Testnet.toml
+        [network]
+        name = "testnet"
+
+        [accounts.deployer]
+        mnemonic = "your twelve word seed phrase here ..."
+        ```
+
+        Make sure the deployer account has enough testnet STX to cover fees. You can request testnet STX from the [Stacks testnet faucet](https://explorer.hiro.so/sandbox/faucet?chain=testnet).
+      </Step>
+
+      <Step title="Update the contract name in the deployment plan">
+        Open `deployments/default.testnet-plan.yaml` and increment the contract name to avoid conflicts with the existing deployment:
+
+        ```yaml deployments/default.testnet-plan.yaml
+        contracts:
+          - contract-name: heirloom-vault-v11   # increment from v10
+            source: contracts/heirloom-vault.clar
+        ```
+      </Step>
+
+      <Step title="Apply the deployment">
+        ```bash
+        clarinet deployments apply \
+          -p deployments/default.testnet-plan.yaml \
+          --no-dashboard
+        ```
+
+        The `--no-dashboard` flag runs the deployment non-interactively, which is useful in CI environments.
+      </Step>
+
+      <Step title="Update the frontend env">
+        After a successful deployment, update `heirloom-app/.env` to point to the new contract:
+
+        ```bash heirloom-app/.env
+        VITE_NETWORK=testnet
+        VITE_CONTRACT_ADDRESS=<your-deployer-address>
+        VITE_CONTRACT_NAME=heirloom-vault-v11
+        ```
+
+        Then rebuild the frontend:
+
+        ```bash
+        cd heirloom-app
+        npm run build
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Mainnet">
+    <Warning>
+      Deploy to mainnet only after thorough testing on testnet. Mainnet transactions are irreversible and involve real assets.
+    </Warning>
+
+    <Steps>
+      <Step title="Configure Mainnet.toml">
+        Open `settings/Mainnet.toml` and fill in the placeholder values:
+
+        ```toml settings/Mainnet.toml
+        [network]
+        name = "mainnet"
+
+        [accounts.deployer]
+        mnemonic = "your mainnet seed phrase here ..."
+
+        [repl]
+        costs_version = 2
+        ```
+
+        Also set an appropriate fee rate. Higher fees reduce the risk of transactions timing out during network congestion.
+      </Step>
+
+      <Step title="Choose a new contract name">
+        Update `deployments/default.testnet-plan.yaml` (or create a `default.mainnet-plan.yaml`) with the versioned contract name you intend to use.
+
+        <Tip>
+          Follow the naming convention already established: `heirloom-vault-v10`, `heirloom-vault-v11`, and so on. Keep a record of which version is live on each network.
+        </Tip>
+      </Step>
+
+      <Step title="Run a final test pass">
+        Before deploying, confirm all 23 tests pass against a clean simnet:
+
+        ```bash
+        npm test
+        ```
+      </Step>
+
+      <Step title="Apply the deployment">
+        ```bash
+        clarinet deployments apply \
+          -p deployments/default.mainnet-plan.yaml \
+          --no-dashboard
+        ```
+      </Step>
+
+      <Step title="Update the frontend env">
+        Point the frontend at the mainnet contract:
+
+        ```bash heirloom-app/.env
+        VITE_NETWORK=mainnet
+        VITE_CONTRACT_ADDRESS=<your-mainnet-deployer-address>
+        VITE_CONTRACT_NAME=heirloom-vault-v10
+        ```
+
+        Then produce a production build:
+
+        ```bash
+        cd heirloom-app
+        npm run build
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Contract versioning
+
+Stacks does not allow updating or overwriting a deployed contract. The deployment strategy for Heirloom is:
+
+1. Increment the version suffix in the contract name for each new deployment.
+2. Update `VITE_CONTRACT_NAME` in `heirloom-app/.env` to route users to the new contract.
+3. Keep previous contract versions accessible — existing vaults on old versions continue to operate independently.
+
+| Version | Network | Deployer |
+|---------|---------|----------|
+| `heirloom-vault-v10` | Testnet | `STZJWVYSKRYV1XBGS8BZ4F81E32RHBREQSE5WAJM` |
+
+## Related
+
+<Columns cols={2}>
+  <Card title="Environment variables" icon="sliders" href="/development/environment-variables">
+    Update the frontend to point to a newly deployed contract.
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Run the full test suite before deploying.
+  </Card>
+</Columns>

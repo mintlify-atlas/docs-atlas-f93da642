@@ -1,0 +1,113 @@
+---
+title: "Prerequisites"
+description: "What you need to install before working with Heirloom locally."
+---
+
+Before running Heirloom locally, install the tools below. You need them for smart contract development, running the test suite, and working with the React frontend.
+
+## Required tools
+
+<Steps>
+  <Step title="Install Node.js v18 or later">
+    Node.js powers both the frontend dev server and the contract test runner.
+
+    Download Node.js from [nodejs.org](https://nodejs.org) or install via a version manager:
+
+    ```bash
+    # Using nvm (recommended)
+    nvm install 20
+    nvm use 20
+
+    # Verify installation
+    node --version   # should print v18.x or later
+    npm --version
+    ```
+  </Step>
+
+  <Step title="Install Clarinet v2.x or later">
+    Clarinet is the Stacks smart contract development toolkit. It provides a local simnet environment, contract linting, and deployment tooling for Clarity contracts.
+
+    ```bash
+    # macOS and Linux via Homebrew
+    brew install clarinet
+
+    # Or via npm
+    npm install -g @hirosystems/clarinet-sdk
+
+    # Verify installation
+    clarinet --version   # should print 2.x.x or later
+    ```
+
+    <Note>
+      Clarinet v2 is required for Clarity 4 language features used in `heirloom-vault.clar`. Earlier versions will not be compatible.
+    </Note>
+  </Step>
+
+  <Step title="Install Git">
+    Git is required to clone the repository.
+
+    ```bash
+    # macOS (via Homebrew)
+    brew install git
+
+    # Ubuntu / Debian
+    sudo apt install git
+
+    # Verify installation
+    git --version
+    ```
+  </Step>
+
+  <Step title="Install a Stacks wallet browser extension">
+    A Stacks-compatible wallet is required for interacting with the app on testnet or mainnet through the browser.
+
+    Install one of the following:
+
+    - **Leather** — [leather.io](https://leather.io) (recommended)
+    - **Xverse** — [xverse.app](https://xverse.app)
+
+    After installing, create a wallet and switch it to **Testnet** mode before connecting to the Heirloom app.
+  </Step>
+</Steps>
+
+## Install project dependencies
+
+After installing the required tools, clone the repository and install dependencies at both the root level (for contract tests) and the frontend.
+
+```bash
+# Clone the repository
+git clone https://github.com/Ge0frey/Heirloom
+cd Heirloom
+
+# Install test/contract dependencies (root level)
+npm install
+
+# Install frontend dependencies
+cd heirloom-app
+npm install
+```
+
+## Start the development server
+
+Once dependencies are installed, start the Vite development server:
+
+```bash
+cd heirloom-app
+npm run dev
+# App available at http://localhost:5173
+```
+
+<Tip>
+  Before the frontend can connect to a contract, configure your environment variables. See [Environment variables](/development/environment-variables) for the full setup.
+</Tip>
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="Environment variables" icon="sliders" href="/development/environment-variables">
+    Configure the frontend to point to the right network and contract.
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Run the 23-test contract suite with Vitest and Clarinet SDK.
+  </Card>
+</Columns>

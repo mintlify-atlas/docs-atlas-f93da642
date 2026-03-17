@@ -1,80 +1,197 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Create your first Heirloom vault and set up inheritance in under 10 minutes."
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide walks you through the complete vault owner setup: installing a wallet, funding it with testnet assets, creating a vault, and sending your first heartbeat. At the end, you will know what heirs need to do when the time comes.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  All steps in this guide use the Stacks testnet. No real Bitcoin or real sBTC is at risk. The testnet contract is deployed at `STZJWVYSKRYV1XBGS8BZ4F81E32RHBREQSE5WAJM.heirloom-vault-v10`.
 </Note>
+
+<Steps>
+  <Step title="Install a Stacks wallet">
+    Heirloom supports Leather and Xverse. Install one before opening the app.
+
+    <Tabs>
+      <Tab title="Leather">
+        1. Go to [leather.io](https://leather.io) and install the browser extension for Chrome or Firefox.
+        2. Open the extension and choose **Create new wallet**.
+        3. Write down your 24-word secret key and store it somewhere safe — not in a screenshot, not in a cloud note.
+        4. Set a password to unlock the extension locally.
+        5. Switch to **Testnet**: open the extension menu (top-right), go to **Settings → Network**, and select **Testnet**.
+      </Tab>
+      <Tab title="Xverse">
+        1. Go to [xverse.app](https://xverse.app) and install the browser extension or mobile app.
+        2. Open Xverse and choose **Create wallet**.
+        3. Back up your seed phrase securely before continuing.
+        4. Switch to testnet: open **Settings → Network** and select **Testnet**.
+      </Tab>
+    </Tabs>
+
+    <Warning>
+      Always back up your seed phrase before using any wallet with real assets. Heirloom cannot recover lost wallets.
+    </Warning>
+  </Step>
+
+  <Step title="Get testnet STX, sBTC, and USDCx">
+    You need testnet STX to pay transaction fees, plus sBTC or USDCx to deposit into the vault.
+
+    **Testnet STX faucet**
+
+    Visit the [Stacks testnet faucet](https://explorer.hiro.so/sandbox/faucet?chain=testnet) and request STX to your wallet address. Funds usually arrive within 30 seconds.
+
+    **Testnet sBTC and USDCx**
+
+    The Heirloom app includes a testnet faucet on the **Faucet** page. Connect your wallet (step 4 below), then:
+
+    1. Navigate to **Faucet** in the app sidebar.
+    2. Click **Mint test sBTC** to receive tokens from `ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token`.
+    3. Click **Mint test USDCx** to receive tokens from `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx`.
+
+    <Note>
+      These are testnet-only tokens with no real value. They exist solely for testing vault creation and claiming flows.
+    </Note>
+  </Step>
+
+  <Step title="Open the Heirloom app">
+    Make sure the frontend development server is running, then open your browser to:
+
+    ```text
+    http://localhost:5173
+    ```
+
+    You will see the Heirloom landing page with a **Connect wallet** button in the top-right corner.
+  </Step>
+
+  <Step title="Connect your wallet">
+    1. Click **Connect wallet** in the top-right corner.
+    2. Select **Leather** or **Xverse** from the dialog.
+    3. Approve the connection request in the wallet popup.
+
+    Your Stacks address appears in the header once connected. Verify it matches the address you funded in step 2.
+  </Step>
+
+  <Step title="Navigate to Create vault">
+    Click **Create vault** in the sidebar, or use the button on the Dashboard home screen. This opens the vault creation form.
+  </Step>
+
+  <Step title="Configure heartbeat interval and grace period">
+    Set the two timing parameters that control when your vault becomes claimable.
+
+    | Parameter | What it controls | Example value |
+    |---|---|---|
+    | **Heartbeat interval** | How often you must send a transaction to keep the vault active | 30 days |
+    | **Grace period** | How long heirs wait after a missed heartbeat before they can claim | 7 days |
+
+    Enter `30` for the heartbeat interval and `7` for the grace period. Both fields accept values from 1 to 365.
+
+    <Tip>
+      For testing, use short intervals like 1–3 days so you can simulate a missed heartbeat and observe the grace and claimable states without waiting weeks.
+    </Tip>
+  </Step>
+
+  <Step title="Add heirs">
+    Click **Add heir** to add each beneficiary. For each heir you need:
+
+    - **Stacks address** — the address that will receive the funds
+    - **Percentage split** — entered as a percentage (the app converts to basis points internally)
+
+    Example configuration with two heirs:
+
+    | Heir | Address | Split |
+    |---|---|---|
+    | Heir 1 | `ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG` | 70% |
+    | Heir 2 | `ST2JHG361ZXG51QTKY2NQCVBPPRRE2KZB1HR05NNS` | 30% |
+
+    All splits must sum to exactly 100%. You can add up to 10 heirs.
+
+    <Warning>
+      Double-check every heir address before confirming. Stacks addresses are case-sensitive and the contract cannot reassign funds after vault creation.
+    </Warning>
+  </Step>
+
+  <Step title="Optionally add a guardian">
+    A guardian is an address that can pause the grace period once for 30 days. This is useful if you want a trusted person — a family member, attorney, or co-signer — to have a brief window to intervene if the vault enters grace unexpectedly while you are still alive.
+
+    To add a guardian, enter a Stacks address in the **Guardian address** field. Leave it blank if you do not want one.
+
+    <Note>
+      The guardian can only pause the grace period once, for exactly 30 days. They cannot withdraw funds, change heirs, or reset the vault.
+    </Note>
+  </Step>
+
+  <Step title="Deposit sBTC and/or USDCx">
+    Enter the amounts you want to lock in the vault:
+
+    - **sBTC amount** — denominated in sBTC (e.g., `0.001`)
+    - **USDCx amount** — denominated in USDCx (e.g., `100`)
+
+    You can deposit one or both tokens. The amounts must not exceed your wallet balance.
+
+    <Tip>
+      Use small amounts for your first test vault. You can always emergency-withdraw before distribution if you need to retrieve funds during testing.
+    </Tip>
+  </Step>
+
+  <Step title="Review and confirm">
+    The final step shows a summary of your vault configuration:
+
+    - Heartbeat interval and grace period
+    - Heir list with addresses and percentage splits
+    - Guardian address (if set)
+    - Token deposit amounts
+
+    Review every field, then click **Create vault**. Your wallet will prompt you to sign two transactions:
+
+    1. **Token approvals** — authorizing the contract to transfer your sBTC and/or USDCx
+    2. **Vault creation** — calling the contract's `create-vault` function
+
+    Approve both. On-chain confirmation typically takes 10–30 seconds on testnet. Once confirmed, you are redirected to the Dashboard.
+  </Step>
+
+  <Step title="Send your first heartbeat">
+    After the vault is created, go to the **Dashboard** in the sidebar. You will see your vault listed with status **active** and a countdown to the next required heartbeat.
+
+    Click **Send heartbeat** to submit your first heartbeat transaction. This resets the countdown timer and confirms to the contract that you are active.
+
+    ```text
+    Vault status:  active
+    Last heartbeat: just now
+    Next heartbeat due: in 30 days
+    ```
+
+    <Note>
+      The Dashboard polls the contract state every 30 seconds. If the status does not update immediately after confirmation, wait a moment and refresh.
+    </Note>
+  </Step>
+
+  <Step title="What heirs do when the time comes">
+    When the vault becomes claimable (heartbeat missed, grace period elapsed), heirs follow these steps:
+
+    1. Open the Heirloom app at `http://localhost:5173`.
+    2. Connect their Stacks wallet (Leather or Xverse).
+    3. Navigate to **Claim** in the sidebar.
+    4. Find the vault by the owner's address — it will show status **claimable**.
+    5. Click **Claim sBTC** and/or **Claim USDCx** to submit their claim transactions.
+
+    The contract calculates each heir's share from the basis-point splits configured at vault creation and transfers the funds directly to the heir's wallet address. No one else can claim on their behalf.
+  </Step>
+</Steps>
+
+## Continue exploring
+
+<Columns cols={2}>
+  <Card title="Dashboard" icon="gauge" href="/app/dashboard">
+    Monitor your vault status, heartbeat history, and asset balances.
+  </Card>
+  <Card title="Claim inheritance" icon="hand-holding" href="/app/claim-inheritance">
+    Step-by-step guide for heirs claiming their share of a distributed vault.
+  </Card>
+  <Card title="Vault lifecycle" icon="arrows-rotate" href="/how-it-works/vault-lifecycle">
+    Understand every state transition from vault creation through full distribution.
+  </Card>
+  <Card title="Emergency withdraw" icon="triangle-exclamation" href="/how-it-works/vault-lifecycle">
+    How to retrieve your funds from a vault before it reaches the distributed state.
+  </Card>
+</Columns>

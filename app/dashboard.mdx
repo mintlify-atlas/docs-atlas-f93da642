@@ -1,0 +1,126 @@
+---
+title: "Dashboard"
+description: "Managing your vault — heartbeats, monitoring status, and emergency controls."
+---
+
+The Dashboard at `/dashboard` is the primary interface for vault owners. It shows real-time vault state, lets you send heartbeats, inspect heir allocations, and access emergency controls.
+
+## Vault status banner
+
+The banner at the top of the dashboard shows the current vault state with a color-coded indicator.
+
+| State | Color | Meaning |
+|---|---|---|
+| **Active** | Green | Vault is healthy. Last heartbeat is within the interval window. |
+| **Grace** | Yellow/Amber | Heartbeat interval has expired. Grace period countdown is running. Heirs cannot claim yet. |
+| **Claimable** | Red | Grace period has also expired. Heirs may now claim their inheritance. |
+| **Distributed** | Gray | All heirs have claimed. Vault is permanently closed. |
+
+## Countdown timer
+
+Below the status banner, a real-time countdown timer updates every second. What it counts down to depends on vault state:
+
+- **Active state**: time remaining until the heartbeat interval expires (i.e., when you must send your next heartbeat).
+- **Grace state**: time remaining in the grace period before the vault becomes claimable.
+- **Claimable/Distributed**: timer is no longer shown or shows zero.
+
+The timer gives you a precise reading of urgency. When it drops below 24 hours, treat it as a high-priority action item.
+
+<Tip>
+  Set a recurring calendar reminder a few days before your heartbeat interval expires. For a 30-day interval, schedule a reminder on day 25 each month so you always have a buffer.
+</Tip>
+
+## Sending a heartbeat
+
+The **Heartbeat** button is the primary action on the Dashboard. Clicking it submits a `sendHeartbeat` transaction to the contract, resetting the countdown timer to your full heartbeat interval.
+
+**Button states:**
+
+- **Normal (Active state)**: standard button style — click to send a routine heartbeat.
+- **Urgent (Grace state)**: button turns red to signal that the heartbeat interval has already expired and the grace period is counting down. Send a heartbeat immediately to restore Active state.
+
+**To send a heartbeat:**
+
+1. Click the **Heartbeat** button.
+2. Your wallet opens a signing dialog.
+3. Approve the transaction.
+4. Once confirmed on-chain, the vault returns to **Active** state and the countdown resets.
+
+<Warning>
+  If you do not send a heartbeat before the grace period expires, the vault transitions to **Claimable** state. At that point, heirs can claim their inheritance and you cannot recover the assets.
+</Warning>
+
+## Vault statistics
+
+The statistics panel shows a snapshot of vault configuration and current balances.
+
+| Statistic | Description |
+|-----------|-------------|
+| **sBTC locked** | Current sBTC balance in the vault. |
+| **USDCx locked** | Current USDCx balance in the vault. |
+| **Heartbeat interval** | Configured interval in days. |
+| **Grace period** | Configured grace period in days. |
+| **Creation date** | Block timestamp when the vault was created. |
+| **Last heartbeat** | Block timestamp of the most recent heartbeat. |
+
+To add more funds, use the deposit controls also available on this page. Deposits call `depositSbtc` or `depositUsdcx` and require wallet approval.
+
+## Heirs list
+
+The heirs table shows every beneficiary registered on the vault.
+
+| Column | Description |
+|--------|-------------|
+| **Address** | Stacks principal (`SP...`) of the heir. |
+| **Percentage** | Share of vault assets allocated to this heir. |
+| **Claim status** | Whether this heir has already claimed (shown post-distribution). |
+
+If you need to change heir addresses or percentages, call `updateHeirs` — this is not available through the UI wizard after creation but can be called directly via the contract.
+
+## Guardian information
+
+If you set a guardian during vault creation, the guardian panel shows:
+
+- **Guardian address**: the Stacks principal designated as guardian.
+- **Pause used**: whether the guardian has already exercised their one-time pause right.
+
+The guardian can call `guardianPause` to temporarily halt the vault if the owner is incapacitated. The pause can only be used once per vault.
+
+## Emergency withdrawal
+
+The **Emergency Withdraw** button permanently closes the vault and returns all locked assets (sBTC and USDCx) to your address.
+
+**When to use it:**
+
+- You want to dissolve the vault entirely and reclaim your assets.
+- Your plans have changed and you no longer need an inheritance vault.
+- You want to restructure with different heirs or parameters (create a new vault after withdrawing).
+
+**What it does:**
+
+1. Calls `emergencyWithdraw` on the contract.
+2. Transfers all sBTC and USDCx back to the vault owner's address.
+3. Permanently closes the vault on-chain.
+
+<Warning>
+  Emergency withdrawal is irreversible. Once executed, the vault is permanently closed and all heir allocations are void. You cannot reopen the same vault — you would need to create a new one.
+</Warning>
+
+## Post-distribution state
+
+When all heirs have claimed their shares, the vault moves to **Distributed** state. The Dashboard displays a confirmation message and a prompt to **Create a New Vault** if you want to set up a successor vault from the same address.
+
+<Note>
+  A distributed vault is permanently closed. You can create a new vault from the same Stacks address at any time — the old vault does not interfere.
+</Note>
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card title="Create a vault" icon="plus-circle" href="/app/create-vault">
+    Walk through the vault creation wizard.
+  </Card>
+  <Card title="Claiming an inheritance" icon="hand-coins" href="/app/claim-inheritance">
+    How heirs claim their share once a vault is claimable.
+  </Card>
+</CardGroup>

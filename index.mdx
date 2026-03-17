@@ -1,97 +1,80 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Heirloom"
+description: "The Bitcoin-Heartbeat Inheritance Vault. If your Bitcoin goes silent, your plan speaks."
 ---
 
-## Setting up
+## Bitcoin inheritance, solved on-chain
 
-Get your documentation site up and running in minutes.
+Heirloom is a trustless inheritance protocol built on Stacks. Lock sBTC and USDCx into a Clarity smart contract, designate your heirs with percentage splits, and maintain a periodic heartbeat from your wallet. If your heartbeat stops, your designated beneficiaries can claim their shares — automatically, without lawyers, custodians, or seed phrase sharing.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/quickstart">
+    Create your first vault in under 10 minutes. Connect your Stacks wallet and set up inheritance in a few steps.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="How it works" icon="heart-pulse" href="/how-it-works/heartbeat">
+    Learn how the heartbeat mechanism, vault lifecycle, and heir claiming work together.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Smart contract reference" icon="file-code" href="/contract/overview">
+    Explore every public function, data model, and error code in the Clarity contract.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Developer setup" icon="terminal" href="/development/prerequisites">
+    Run the contract locally, execute the test suite, and deploy to testnet or mainnet.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Heirloom?
 
-Everything you need to create world-class documentation.
+An estimated 3–4 million Bitcoin are permanently lost. A growing portion is due to holder death or incapacitation with no succession plan. Every existing solution requires a compromise:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+| Approach | Problem |
+|---|---|
+| Seed phrase in a safe | Exposes full wallet access to a third party |
+| Multisig with family | Requires technical sophistication from every keyholder |
+| Centralized custody | Defeats the purpose of self-custody |
+| Estate lawyers | Slow, expensive, and cannot interact with smart contracts |
+| Do nothing | The most common approach — Bitcoin is permanently lost |
 
-## Need inspiration?
+Heirloom resolves this tension: **custody stays in the owner's hands** while inheritance becomes automatic and trustless.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Key features
+
+<CardGroup cols={3}>
+  <Card title="Heartbeat mechanism" icon="heart-pulse">
+    Periodic on-chain proof-of-life keeps your vault locked. Miss a heartbeat and the countdown begins.
+  </Card>
+  <Card title="Multi-heir splits" icon="users">
+    Up to 10 beneficiaries with basis-point percentage allocations (must sum to 100%).
+  </Card>
+  <Card title="Multi-asset vaults" icon="vault">
+    Lock sBTC and USDCx together in a single vault for diversified inheritance.
+  </Card>
+  <Card title="Configurable grace period" icon="clock">
+    Set a buffer period after a missed heartbeat before assets become claimable.
+  </Card>
+  <Card title="Guardian system" icon="shield">
+    Designate a trusted guardian who can pause the countdown once during the grace period.
+  </Card>
+  <Card title="Emergency withdrawal" icon="arrow-up-from-bracket">
+    Reclaim all assets at any time before distribution — full owner control, always.
+  </Card>
+</CardGroup>
+
+## How the vault lifecycle works
+
+```
+CREATED → ACTIVE → GRACE → CLAIMABLE → DISTRIBUTED
+              ↑         ↑          ↑
+              └─────────┴──────────┘
+                   heartbeat() resets countdown
+```
+
+The vault state is **computed on every read** from `stacks-block-time` and `last-heartbeat` — no stale state, no manual state-update transactions required.
+
+<CardGroup cols={2}>
+  <Card title="Vault lifecycle" icon="arrow-right" href="/how-it-works/vault-lifecycle">
+    Understand all five vault states and what triggers each transition.
+  </Card>
+  <Card title="Create your vault" icon="plus" href="/app/create-vault">
+    Step-by-step guide to creating a vault in the Heirloom app.
+  </Card>
+</CardGroup>

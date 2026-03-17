@@ -1,0 +1,128 @@
+---
+title: "Heirs and splits"
+description: "How to designate beneficiaries and allocate inheritance shares."
+---
+
+Heirs are the Stacks addresses that receive your vault's assets when the vault becomes claimable. You can designate up to 10 heirs per vault, each with a defined percentage of the total balance.
+
+## Splits and basis points
+
+Shares are expressed in **basis points**, where `10000` equals 100%. This gives you two decimal places of precision without floating-point arithmetic in the contract.
+
+| Basis points | Percentage |
+|---|---|
+| 10000 | 100% |
+| 5000 | 50% |
+| 2500 | 25% |
+| 1000 | 10% |
+| 500 | 5% |
+| 100 | 1% |
+
+```clarity BASIS-POINTS constant
+(define-constant BASIS-POINTS u10000)
+```
+
+<Warning>
+The splits across all heirs **must sum to exactly 10000**. The contract enforces this at creation and on every update. If your splits do not add up to 10000, the transaction will be rejected.
+</Warning>
+
+## Example allocations
+
+| Heir | Role | Basis points | Percentage |
+|------|------|---|---|
+| `SP1ABC...` | Spouse | 6000 | 60% |
+| `SP2DEF...` | Child 1 | 2500 | 25% |
+| `SP3GHI...` | Child 2 | 1500 | 15% |
+| **Total** | | **10000** | **100%** |
+
+## What heirs receive
+
+Each heir receives a proportional share of every asset in the vault at the time of their claim. Heirloom vaults hold two asset types:
+
+- **sBTC** — wrapped Bitcoin on Stacks
+- **USDCx** — cross-chain USDC on Stacks
+
+The share for each asset is calculated identically:
+
+```
+sbtc-share  = (sbtc-balance  * split-bps) / 10000
+usdcx-share = (usdcx-balance * split-bps) / 10000
+```
+
+This calculation happens at claim time using the vault's actual balance, so late deposits before a claim are included in the distribution.
+
+## The claim process
+
+Each heir claims independently. There is no coordination required between heirs, and one heir claiming does not affect another's ability to claim.
+
+<Steps>
+  <Step title="Vault becomes claimable">
+    The vault's full deadline passes (heartbeat interval + grace period + any guardian extension). The vault state moves to `claimable`.
+  </Step>
+  <Step title="Heir calls claim">
+    The heir sends a `claim(vault-owner)` transaction from their own wallet. The contract verifies:
+    - The vault is in claimable state
+    - The caller's address is in the heir list
+    - The heir has not already claimed
+  </Step>
+  <Step title="Assets transferred">
+    The contract transfers the heir's calculated share of sBTC and USDCx directly to their address.
+  </Step>
+  <Step title="Last claim triggers distribution">
+    When the final heir claims their share, the contract sets `is-distributed = true` and the vault moves to the `distributed` state permanently.
+  </Step>
+</Steps>
+
+```clarity claim function (simplified)
+;; Each heir calls this independently
+;; sbtc-share = (sbtc-balance * split-bps) / 10000
+;; Contract transfers sBTC and USDCx proportionally
+;; Last claim sets is-distributed = true
+(define-public (claim (vault-owner principal))
+  ...
+)
+```
+
+## Updating heirs
+
+While your vault is in **active** state, you can call `update-heirs()` to change the heir list and splits. The same rules apply:
+
+- Up to 10 heirs
+- Splits must sum to exactly 10000
+- Changes take effect immediately for future claims
+
+<Note>
+You cannot update heirs once the vault is in grace or claimable state. Update your heirs while the vault is active.
+</Note>
+
+## Heir discovery in the app
+
+The Heirloom Dashboard helps heirs find vaults that name them as beneficiaries:
+
+- **Auto-scan**: the app queries the Hiro API to find all vaults where your connected address appears as an heir. This runs automatically when you open the Dashboard.
+- **Manual lookup**: heirs can enter a vault owner's address directly to look up a specific vault, without needing the owner to share a link.
+
+<Tip>
+Tell your heirs about Heirloom and make sure they have their Stacks wallet set up before an emergency. The claim process requires them to send a transaction, which means having a funded wallet and knowing how to use it.
+</Tip>
+
+## Limits and constraints
+
+| Parameter | Value |
+|---|---|
+| Maximum heirs per vault | 10 |
+| Minimum split per heir | 1 basis point (0.01%) |
+| Total splits required | Exactly 10000 (100%) |
+| Supported assets | sBTC, USDCx |
+| Claim window | After claimable state; no expiry |
+
+## Continue reading
+
+<Columns cols={2}>
+  <Card title="Vault lifecycle" icon="rotate" href="/how-it-works/vault-lifecycle">
+    Understand the states a vault passes through before heirs can claim.
+  </Card>
+  <Card title="Guardian system" icon="shield" href="/how-it-works/guardian-system">
+    Add a trusted guardian to extend your deadline during an emergency.
+  </Card>
+</Columns>

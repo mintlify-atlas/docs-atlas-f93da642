@@ -1,0 +1,150 @@
+---
+title: "Wallet integration"
+description: "Connecting and using Leather or Xverse wallets with the Heirloom app."
+---
+
+Heirloom uses `@stacks/connect` v8 to support Stacks-compatible browser extension wallets. A connected wallet is required to create vaults, send heartbeats, and claim inheritance — all operations that submit on-chain transactions.
+
+## Supported wallets
+
+| Wallet | Description | Install |
+|--------|-------------|--------|
+| **Leather** | Formerly Hiro Wallet. The original Stacks browser wallet. | [leather.io](https://leather.io) |
+| **Xverse** | Multi-chain wallet with Stacks and Bitcoin support. | [xverse.app](https://www.xverse.app) |
+
+Both wallets are browser extensions available for Chrome and Firefox. Install one before using Heirloom.
+
+## Connecting your wallet
+
+<Steps>
+  <Step title="Install a wallet extension">
+    Download and install Leather or Xverse from the links above. Create or import a wallet and fund it with a small amount of STX to cover transaction fees.
+  </Step>
+
+  <Step title="Click Connect Wallet">
+    In the Heirloom navbar, click the **Connect Wallet** button. A wallet selection dialog appears listing the supported wallets detected in your browser.
+  </Step>
+
+  <Step title="Select your wallet">
+    Click Leather or Xverse. The wallet extension opens a permission dialog asking you to approve the connection.
+  </Step>
+
+  <Step title="Approve the connection">
+    Confirm in your wallet extension. Your Stacks address is now available to the app.
+  </Step>
+</Steps>
+
+## Session persistence
+
+Heirloom's `WalletContext` restores your previous wallet session automatically on page load using `getLocalStorage()` from `@stacks/connect`. If you have connected before, you will not need to re-approve the connection on each visit — your address and connection state are retrieved from browser storage.
+
+To explicitly reconnect or switch wallets, disconnect first and then connect again.
+
+## Connected state
+
+Once connected, the navbar displays:
+
+- Your STX address (truncated for display).
+- Token balances (sBTC and USDCx) in a dropdown.
+
+The `WalletContext` exposes the following values throughout the app:
+
+| Value | Type | Description |
+|-------|------|-------------|
+| `stxAddress` | `string` | Your connected Stacks principal (`SP...`). |
+| `isConnected` | `boolean` | Whether a wallet is currently connected. |
+| `connectWallet()` | `function` | Opens the wallet selection dialog. |
+| `disconnectWallet()` | `function` | Disconnects the current wallet. |
+
+## Signing transactions
+
+All contract write operations require a wallet signature. When you trigger an action (create vault, heartbeat, claim, deposit, emergency withdraw), the app constructs a transaction using `@stacks/transactions` v7 and passes it to the connected wallet for signing and broadcast.
+
+You will see a signing dialog in your wallet extension for each of the following operations:
+
+| Operation | Contract function |
+|-----------|-------------------|
+| Create vault | `createVault` |
+| Deposit sBTC | `depositSbtc` |
+| Deposit USDCx | `depositUsdcx` |
+| Send heartbeat | `sendHeartbeat` |
+| Claim inheritance | `claimInheritance` |
+| Emergency withdraw | `emergencyWithdraw` |
+| Guardian pause | `guardianPause` |
+| Update heirs | `updateHeirs` |
+
+## Read-only operations
+
+Not all operations require a wallet. The following read functions query the contract directly and do not require a connected wallet or any transaction signing:
+
+```typescript
+getVaultStatus(ownerAddress)              // vault state and timing
+getHeirInfo(ownerAddress, heirAddress)    // heir allocation and claim status
+getHeirList(ownerAddress)                 // all heirs for a vault
+```
+
+This means pages like the claim auto-discovery can prefetch some vault data before the user connects.
+
+## @stacks/connect usage
+
+The wallet integration is built on `@stacks/connect` v8. The core imports used in `WalletContext`:
+
+```typescript
+import { connect, disconnect, isConnected, getLocalStorage } from '@stacks/connect';
+
+// Open wallet selection dialog
+await connect();
+
+// Disconnect current wallet
+disconnect();
+
+// Check if a wallet is connected
+const connected: boolean = isConnected();
+
+// Retrieve stored address from browser localStorage
+const stored = getLocalStorage(); // returns address if previously connected
+```
+
+## Network configuration
+
+Heirloom defaults to **testnet**. To switch to mainnet, set the `VITE_NETWORK` environment variable before building or running the dev server:
+
+```bash
+# Run on testnet (default)
+npm run dev
+
+# Run on mainnet
+VITE_NETWORK=mainnet npm run dev
+```
+
+<Warning>
+  Mainnet transactions use real assets. Test your vault configuration on testnet before switching to mainnet.
+</Warning>
+
+<Note>
+  Testnet STX and testnet sBTC/USDCx have no monetary value. Use the Stacks testnet faucet to obtain testnet STX for transaction fees during development.
+</Note>
+
+## Mobile support
+
+Leather and Xverse are browser extensions and are not available as mobile browser plug-ins in the traditional sense. Mobile support depends on each wallet's native mobile app and its in-app browser:
+
+- **Leather**: check the Leather app for in-app browser support.
+- **Xverse**: Xverse's mobile app includes an in-app browser that supports DApp connections.
+
+For the best experience, use Heirloom on a desktop browser with the extension installed.
+
+## Disconnecting
+
+To disconnect your wallet, click your address in the navbar dropdown and select **Disconnect**. This calls `disconnectWallet()` in `WalletContext`, which invokes `disconnect()` from `@stacks/connect` and clears the local session.
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card title="Create a vault" icon="plus-circle" href="/app/create-vault">
+    Create your first Heirloom inheritance vault.
+  </Card>
+  <Card title="Claiming an inheritance" icon="hand-coins" href="/app/claim-inheritance">
+    How heirs discover and claim from a vault.
+  </Card>
+</CardGroup>

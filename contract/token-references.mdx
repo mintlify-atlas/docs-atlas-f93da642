@@ -1,0 +1,96 @@
+---
+title: "Token references"
+description: "The SIP-010 fungible tokens accepted by the Heirloom vault contract."
+---
+
+The Heirloom vault accepts two SIP-010 fungible tokens: sBTC (a Bitcoin-backed token) and USDCx (a dollar-stable token). Their contract addresses are hardcoded as constants in the vault contract.
+
+## sBTC
+
+| Property | Value |
+|----------|-------|
+| Contract | `ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token` |
+| Token name | `sbtc-token` |
+| Standard | SIP-010 fungible token |
+| Unit | Satoshis (1 BTC = 100,000,000 units) |
+
+sBTC is a 1:1 Bitcoin-backed SIP-010 token on the Stacks blockchain. Each unit of sBTC is backed by one satoshi of BTC held in the sBTC system. Storing sBTC in an Heirloom vault allows heirs to inherit Bitcoin-denominated value directly on Stacks without needing access to a raw Bitcoin wallet.
+
+## USDCx
+
+| Property | Value |
+|----------|-------|
+| Contract | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx` |
+| Token name | `usdcx-token` |
+| Standard | SIP-010 fungible token |
+| Unit | Micro-units (1 USDCx = 1,000,000 units) |
+
+USDCx is a dollar-stable SIP-010 token on Stacks. It provides stable-value inheritance — heirs receive a predictable dollar amount rather than a volatile asset. Combining sBTC and USDCx in one vault lets owners hedge between Bitcoin appreciation and dollar stability.
+
+---
+
+## How deposits work
+
+Deposits use Clarity 4's `restrict-assets?` block combined with a `with-ft` post-condition to enforce exact transfer amounts:
+
+```clarity
+;; Conceptual deposit pattern (simplified)
+(restrict-assets?
+  (with-ft sbtc-token amount tx-sender (as-contract tx-sender))
+  (ft-transfer? sbtc-token amount tx-sender (as-contract tx-sender))
+)
+```
+
+The `restrict-assets?` wrapper ensures that:
+1. The caller cannot be tricked into approving a larger transfer than the declared `amount`.
+2. If the inner transfer fails for any reason, the entire transaction is rolled back.
+
+The vault's `sbtc-balance` and `usdcx-balance` fields are incremented only after a successful transfer.
+
+---
+
+## How claims and withdrawals work
+
+When an heir claims or the owner calls `emergency-withdraw`, the contract uses `as-contract?` to send tokens from the contract's own custody:
+
+```clarity
+;; Conceptual claim pattern (simplified)
+(as-contract
+  (restrict-assets?
+    (with-ft sbtc-token share heir)
+    (ft-transfer? sbtc-token share (as-contract tx-sender) heir)
+  )
+)
+```
+
+`as-contract?` elevates the call to the contract's principal, authorizing it to move tokens it holds. The `with-ft` post-condition confirms that exactly `share` tokens leave the contract — preventing under-payment or over-payment.
+
+---
+
+## Unit denominations
+
+<Warning>
+All token amounts in the contract are integers in the smallest unit. Passing a human-readable value (e.g. `1` instead of `100000000` for 1 sBTC) will result in a negligible transfer.
+</Warning>
+
+| Token | Human unit | Contract unit | Conversion |
+|-------|------------|---------------|------------|
+| sBTC | 1 BTC | `u100000000` | multiply BTC amount by 100,000,000 |
+| USDCx | 1 USD | `u1000000` | multiply USD amount by 1,000,000 |
+
+---
+
+## Environment variables
+
+The frontend reads token contract addresses from environment variables, making it straightforward to point at a different deployment for local testing:
+
+```bash
+VITE_SBTC_CONTRACT=ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token
+VITE_USDCX_CONTRACT=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx
+```
+
+These values must match the hardcoded constants in the deployed contract. If you deploy a mock token for local development, update both the environment variables and the contract constants before running `clarinet integrate`.
+
+<Note>
+On mainnet, sBTC is deployed by the Stacks Foundation and its contract address differs from the testnet address above. Always verify the correct address for the network you are targeting.
+</Note>

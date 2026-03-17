@@ -1,0 +1,213 @@
+---
+title: "Public functions"
+description: "All write functions available on the Heirloom vault contract."
+---
+
+Public functions mutate on-chain state and require a signed Stacks transaction. All functions return `(response bool uint)` — `(ok true)` on success or `(err uint)` with an error code on failure.
+
+---
+
+## create-vault
+
+Initializes a new vault for the transaction sender. Each principal can have at most one vault at a time.
+
+```clarity
+(define-public (create-vault
+    (heartbeat-interval uint)
+    (grace-period uint)
+    (heirs-data (list 10 { heir: principal, split-bps: uint }))
+    (guardian (optional principal))
+  )
+```
+
+**Access control:** any principal (becomes the vault owner)
+
+<ParamField path="heartbeat-interval" type="uint" required>
+  How many seconds the owner has between heartbeats before the grace period begins. For example, `u2592000` = 30 days.
+</ParamField>
+
+<ParamField path="grace-period" type="uint" required>
+  How many seconds the grace period lasts after a missed heartbeat. After this window (plus any guardian pause), heirs can claim.
+</ParamField>
+
+<ParamField path="heirs-data" type="list" required>
+  Up to 10 entries of `{ heir: principal, split-bps: uint }`. The `split-bps` values must sum to exactly `u10000` (100%).
+</ParamField>
+
+<ParamField path="guardian" type="optional principal">
+  An optional trusted address who can invoke `guardian-pause` once during the grace period. Pass `none` to omit.
+</ParamField>
+
+**Errors:**
+- `ERR-VAULT-ALREADY-EXISTS` (`u109`) — caller already has an active vault
+- `ERR-INVALID-SPLITS` (`u106`) — heir splits do not sum to `u10000` or no heirs provided
+
+---
+
+## deposit-sbtc
+
+Transfers sBTC from the caller into the vault. Uses Clarity 4's `restrict-assets?` with `with-ft` to enforce the exact transfer amount as a post-condition.
+
+```clarity
+(define-public (deposit-sbtc (amount uint)))
+```
+
+**Access control:** vault owner only
+
+<ParamField path="amount" type="uint" required>
+  Amount of sBTC to deposit, denominated in satoshis. Must be greater than zero.
+</ParamField>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — caller has no vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault has already been distributed
+- `ERR-NO-BALANCE` (`u113`) — amount is zero
+
+---
+
+## deposit-usdcx
+
+Transfers USDCx from the caller into the vault. Follows the same pattern as `deposit-sbtc`.
+
+```clarity
+(define-public (deposit-usdcx (amount uint)))
+```
+
+**Access control:** vault owner only
+
+<ParamField path="amount" type="uint" required>
+  Amount of USDCx to deposit, in micro-units. Must be greater than zero.
+</ParamField>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — caller has no vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault has already been distributed
+- `ERR-NO-BALANCE` (`u113`) — amount is zero
+
+---
+
+## heartbeat
+
+Resets the vault's liveness timer to the current block timestamp. This keeps the vault in `active` state as long as the owner calls it before `last-heartbeat + heartbeat-interval` elapses.
+
+```clarity
+(define-public (heartbeat))
+```
+
+**Access control:** vault owner only
+
+No parameters.
+
+<Note>
+Calling `heartbeat` while the vault is in `claimable` state is allowed, provided no heir has claimed yet. This lets an owner "revive" their vault if they missed the deadline but acted before any claims were submitted.
+</Note>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — caller has no vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault has already been distributed
+
+---
+
+## claim
+
+Allows a registered heir to claim their proportional share of sBTC and USDCx from a claimable vault.
+
+```clarity
+(define-public (claim (vault-owner principal)))
+```
+
+**Access control:** registered heirs only, when vault is in `claimable` state
+
+<ParamField path="vault-owner" type="principal" required>
+  The principal address of the vault owner to claim from.
+</ParamField>
+
+The contract:
+1. Verifies the vault is in `claimable` state (elapsed time >= `heartbeat-interval + grace-period + guardian-bonus`).
+2. Looks up the caller's `split-bps` from the `heirs` map.
+3. Calculates `sbtc-share = (sbtc-balance * split-bps) / 10000` and the equivalent for USDCx.
+4. Transfers the shares using `as-contract?` with `with-ft` post-conditions.
+5. Records the claim in `heir-claimed`.
+6. Increments `claims-count`. When `claims-count == heir-count`, sets `is-distributed = true`.
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — no vault found for the specified owner
+- `ERR-NOT-HEIR` (`u101`) — caller is not a registered heir
+- `ERR-VAULT-NOT-CLAIMABLE` (`u104`) — vault has not reached claimable state
+- `ERR-ALREADY-CLAIMED` (`u105`) — caller has already claimed from this vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault is fully distributed
+
+---
+
+## emergency-withdraw
+
+Returns all sBTC and USDCx balances to the vault owner and marks the vault as distributed. Can be called at any time before the vault is distributed.
+
+```clarity
+(define-public (emergency-withdraw))
+```
+
+**Access control:** vault owner only
+
+No parameters.
+
+<Warning>
+Calling `emergency-withdraw` is irreversible. The vault is marked as distributed and heirs can no longer claim. If you want to continue using Heirloom, you must create a new vault.
+</Warning>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — caller has no vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault has already been distributed
+
+---
+
+## guardian-pause
+
+Allows the vault's designated guardian to extend the claimable deadline by 30 days (`GUARDIAN-PAUSE-BONUS = 2,592,000` seconds). Can only be called once, and only while the vault is in the grace period.
+
+```clarity
+(define-public (guardian-pause (vault-owner principal)))
+```
+
+**Access control:** designated guardian only
+
+<ParamField path="vault-owner" type="principal" required>
+  The principal address of the vault whose deadline should be extended.
+</ParamField>
+
+Sets `guardian-pause-used = true` on the vault. Subsequent calls by the same guardian will return `ERR-GUARDIAN-PAUSE-USED`.
+
+<Tip>
+The guardian pause is intended for situations where the owner is temporarily unreachable (e.g. hospitalized or traveling without internet access) but the heirs should not immediately be able to claim.
+</Tip>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — no vault found for the specified owner
+- `ERR-NOT-GUARDIAN` (`u102`) — caller is not the vault's designated guardian
+- `ERR-NOT-IN-GRACE` (`u112`) — vault is not currently in the grace period
+- `ERR-GUARDIAN-PAUSE-USED` (`u111`) — guardian has already used their one-time pause
+
+---
+
+## update-heirs
+
+Replaces the entire heir list and their split allocations. Takes effect immediately; the old list is discarded.
+
+```clarity
+(define-public (update-heirs (new-heirs (list 10 { heir: principal, split-bps: uint }))))
+```
+
+**Access control:** vault owner only
+
+<ParamField path="new-heirs" type="list" required>
+  Up to 10 entries of `{ heir: principal, split-bps: uint }`. The `split-bps` values must sum to exactly `u10000`.
+</ParamField>
+
+<Note>
+Any heir who was registered under the previous list and had not yet claimed will lose their claim. Only the new heir list is valid after this call.
+</Note>
+
+**Errors:**
+- `ERR-VAULT-NOT-FOUND` (`u103`) — caller has no vault
+- `ERR-VAULT-DISTRIBUTED` (`u110`) — vault has already been distributed
+- `ERR-INVALID-SPLITS` (`u106`) — new heir splits do not sum to `u10000` or no heirs provided

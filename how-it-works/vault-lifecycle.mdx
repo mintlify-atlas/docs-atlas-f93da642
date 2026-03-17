@@ -1,0 +1,147 @@
+---
+title: "Vault lifecycle"
+description: "The four states a vault passes through from creation to distribution."
+---
+
+Every Heirloom vault moves through a defined sequence of states from the moment it is created until the inheritance is distributed. Understanding the lifecycle helps you plan your heartbeat cadence and know exactly what your heirs can do at each stage.
+
+## State machine
+
+```
+CREATED --deposit--> ACTIVE --interval expires--> GRACE --grace expires--> CLAIMABLE --all claimed--> DISTRIBUTED
+                       ^                              |                           |
+                       |          heartbeat()         |        heartbeat()        |
+                       +------------------------------+---------------------------+
+
+At any point before DISTRIBUTED, the owner can call emergency-withdraw() --> CANCELLED
+```
+
+<Note>
+Vault state is **computed on every read**, not stored as a field in the contract. When you query `get-vault-status`, the contract calculates state from the current block time, `last-heartbeat`, and whether the vault is marked `is-distributed`. This means the state is always accurate and never stale.
+</Note>
+
+## The four states
+
+### Active
+
+The vault is healthy. The elapsed time since `last-heartbeat` is less than the configured heartbeat interval.
+
+**What the owner can do:**
+- Send a heartbeat to reset the countdown
+- Deposit additional sBTC or USDCx
+- Update the heir list and splits
+- Set or change the guardian
+- Call emergency withdraw to cancel the vault
+
+**What heirs can do:**
+- View the vault status (read-only)
+- Nothing else — claims are blocked
+
+---
+
+### Grace
+
+The heartbeat interval has elapsed but the full deadline has not been reached. The vault is overdue but not yet claimable.
+
+The grace period gives the owner a buffer to send a late heartbeat. Its duration is set at vault creation. If a guardian pause has been applied, the effective deadline is extended by 30 days.
+
+**Condition:** `elapsed >= heartbeat-interval` AND `elapsed < (heartbeat-interval + grace-period + guardian-bonus)`
+
+**What the owner can do:**
+- Send a heartbeat to reset the countdown and return to active
+- Call emergency withdraw
+
+**What heirs can do:**
+- View that the vault is in grace (read-only)
+- Nothing else — claims are still blocked
+
+**What the guardian can do:**
+- Call `guardian-pause()` once to extend the deadline by 30 days
+
+---
+
+### Claimable
+
+The full deadline has passed. Each heir can now claim their proportional share of the vault's sBTC and USDCx independently.
+
+**Condition:** `elapsed >= (heartbeat-interval + grace-period + guardian-bonus)`
+
+**What the owner can do:**
+- Send a heartbeat to reset the countdown (recovery is still possible if no claims have been fully processed)
+- Call emergency withdraw if no claims have been made
+
+**What heirs can do:**
+- Call `claim(vault-owner)` to receive their share
+- Each heir claims independently; one heir claiming does not block others
+
+<Warning>
+If you miss your heartbeat and the vault reaches claimable state, act quickly. Once an heir submits a claim transaction, that share is transferred and cannot be reversed.
+</Warning>
+
+---
+
+### Distributed
+
+The vault has been fully settled. This state is set when:
+
+- The **last remaining heir** claims their share (auto-distribution: the contract marks `is-distributed = true` when all shares are claimed)
+- **OR** the owner calls `emergency-withdraw()` at any point before distribution
+
+Once distributed, the vault is permanently closed. No further heartbeats, claims, or deposits are accepted.
+
+**After distribution:** you can create a new vault from the same address. Your address is not locked.
+
+---
+
+## State transitions table
+
+| From | To | Trigger | Who |
+|------|----|---------|-----|
+| Created | Active | First deposit | Owner |
+| Active | Grace | Heartbeat interval expires | Automatic (time) |
+| Grace | Active | `heartbeat()` called | Owner |
+| Grace | Claimable | Grace period expires | Automatic (time) |
+| Grace | Grace (extended) | `guardian-pause()` called | Guardian |
+| Claimable | Active | `heartbeat()` called | Owner |
+| Claimable | Distributed | Last heir calls `claim()` | Heir |
+| Any (pre-distributed) | Distributed | `emergency-withdraw()` called | Owner |
+
+## Key design details
+
+### State is computed, not stored
+
+The contract stores only `last-heartbeat`, `is-distributed`, `heartbeat-interval`, `grace-period`, and `guardian-pause-used`. The state label (`"active"`, `"grace"`, `"claimable"`, `"distributed"`) is derived on every call to `get-vault-status`:
+
+```clarity get-vault-status state derivation
+state: (if (get is-distributed vault)
+  "distributed"
+  (if (>= elapsed deadline)
+    "claimable"
+    (if (>= elapsed interval)
+      "grace"
+      "active"
+    )
+  )
+),
+```
+
+This means there is no state migration needed and the vault's status is always current as of the latest block.
+
+### The guardian-pause-used flag
+
+When a guardian calls `guardian-pause()`, the contract sets `guardian-pause-used = true` and adds `GUARDIAN-PAUSE-BONUS` (2,592,000 seconds / 30 days) to the effective deadline. The flag ensures the pause can only be used once per vault lifetime. The bonus is factored into all state calculations from that point forward.
+
+### Emergency withdraw cancels the vault
+
+The owner can call `emergency-withdraw()` at any time before the vault is fully distributed. This returns all deposited funds to the owner and marks the vault as distributed, closing it permanently. It is a one-way operation.
+
+## Continue reading
+
+<Columns cols={2}>
+  <Card title="The heartbeat mechanism" icon="heart" href="/how-it-works/heartbeat">
+    Learn how the countdown timer works and how to reset it.
+  </Card>
+  <Card title="Heirs and splits" icon="users" href="/how-it-works/heirs-and-splits">
+    Configure beneficiaries and allocate shares.
+  </Card>
+</Columns>

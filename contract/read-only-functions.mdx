@@ -1,0 +1,174 @@
+---
+title: "Read-only functions"
+description: "Query functions that return vault state without requiring a transaction."
+---
+
+Read-only functions do not require a signed transaction and can be called off-chain at no cost. They derive computed state from the raw map values on every call.
+
+---
+
+## get-vault-status
+
+Returns the full computed state of a vault. This is the primary query function for any UI or integration.
+
+```clarity
+(define-read-only (get-vault-status (owner principal)))
+```
+
+### Parameters
+
+<ParamField path="owner" type="principal" required>
+  The principal address of the vault owner to query.
+</ParamField>
+
+### Response
+
+Returns `(ok { ... })` on success or `(err u103)` if no vault exists for the given owner.
+
+<ResponseField name="state" type="string">
+  Computed vault state. One of `"active"`, `"grace"`, `"claimable"`, or `"distributed"`. This value is derived from timestamps and flags — it is never stored on-chain.
+
+  <Expandable title="state derivation">
+    - `"distributed"` — `is-distributed` is `true`
+    - `"claimable"` — elapsed seconds >= `heartbeat-interval + grace-period + (guardian-pause-used ? GUARDIAN-PAUSE-BONUS : 0)`
+    - `"grace"` — elapsed seconds >= `heartbeat-interval` but claimable threshold not yet reached
+    - `"active"` — elapsed seconds < `heartbeat-interval`
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="sbtc-balance" type="uint">
+  Current sBTC balance held in the vault, in satoshis.
+</ResponseField>
+
+<ResponseField name="usdcx-balance" type="uint">
+  Current USDCx balance held in the vault, in micro-units.
+</ResponseField>
+
+<ResponseField name="last-heartbeat" type="uint">
+  Unix timestamp (seconds) of the most recent heartbeat or vault creation.
+</ResponseField>
+
+<ResponseField name="heartbeat-interval" type="uint">
+  Configured heartbeat interval in seconds.
+</ResponseField>
+
+<ResponseField name="grace-period" type="uint">
+  Configured grace period in seconds.
+</ResponseField>
+
+<ResponseField name="elapsed-seconds" type="uint">
+  Seconds that have passed since `last-heartbeat`, calculated as `stacks-block-time - last-heartbeat`.
+</ResponseField>
+
+<ResponseField name="seconds-until-grace" type="uint">
+  Seconds remaining before the grace period begins. Returns `u0` if already in grace or beyond.
+</ResponseField>
+
+<ResponseField name="seconds-until-claimable" type="uint">
+  Seconds remaining before the vault becomes claimable. Returns `u0` if already claimable or distributed.
+</ResponseField>
+
+<ResponseField name="heir-count" type="uint">
+  Number of registered heirs.
+</ResponseField>
+
+<ResponseField name="claims-count" type="uint">
+  Number of heirs who have claimed so far.
+</ResponseField>
+
+<ResponseField name="guardian" type="optional principal">
+  The designated guardian's address, or `none` if no guardian was configured.
+</ResponseField>
+
+<ResponseField name="guardian-pause-used" type="bool">
+  Whether the guardian has already used their one-time pause.
+</ResponseField>
+
+<ResponseField name="is-distributed" type="bool">
+  Whether the vault has been fully distributed or emergency-withdrawn.
+</ResponseField>
+
+<ResponseField name="created-at" type="uint">
+  Unix timestamp of vault creation.
+</ResponseField>
+
+---
+
+## get-heir-info
+
+Returns the split allocation and claim status for a specific heir.
+
+```clarity
+(define-read-only (get-heir-info (owner principal) (heir principal)))
+```
+
+### Parameters
+
+<ParamField path="owner" type="principal" required>
+  The vault owner's principal address.
+</ParamField>
+
+<ParamField path="heir" type="principal" required>
+  The heir's principal address.
+</ParamField>
+
+### Response
+
+Returns `(ok { split-bps: uint, has-claimed: bool })`.
+
+<ResponseField name="split-bps" type="uint">
+  This heir's share in basis points (out of `10000`). For example, `u2500` means 25%.
+</ResponseField>
+
+<ResponseField name="has-claimed" type="bool">
+  Whether this heir has already claimed their share from the vault.
+</ResponseField>
+
+---
+
+## get-heir-list
+
+Returns the ordered list of heir principals for a given owner.
+
+```clarity
+(define-read-only (get-heir-list (owner principal)))
+```
+
+### Parameters
+
+<ParamField path="owner" type="principal" required>
+  The vault owner's principal address.
+</ParamField>
+
+### Response
+
+Returns `(ok (list 10 principal))` — up to 10 principal addresses in the order they were registered.
+
+---
+
+## TypeScript usage
+
+The following examples use the `contracts.ts` helper library.
+
+```typescript
+import { getVaultStatus, getHeirInfo, getHeirList } from './lib/contracts';
+
+// Fetch full vault state for an owner
+const status = await getVaultStatus('SP...');
+console.log(status.state);              // 'active' | 'grace' | 'claimable' | 'distributed'
+console.log(status.sbtcBalance);        // bigint (satoshis)
+console.log(status.secondsUntilGrace);  // bigint
+
+// Check a specific heir's allocation and claim status
+const heirInfo = await getHeirInfo('SP...', 'SP...');
+console.log(heirInfo.splitBps);    // bigint (out of 10000n)
+console.log(heirInfo.hasClaimed);  // boolean
+
+// List all heir addresses for a vault
+const heirList = await getHeirList('SP...');
+console.log(heirList);  // string[] of principal addresses
+```
+
+<Note>
+All `uint` values from Clarity are returned as `bigint` in JavaScript/TypeScript when using the Stacks.js SDK.
+</Note>

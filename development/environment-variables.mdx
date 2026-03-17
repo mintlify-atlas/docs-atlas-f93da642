@@ -1,0 +1,98 @@
+---
+title: "Environment variables"
+description: "Configuration for the Heirloom frontend application."
+---
+
+The Heirloom frontend is configured through a `.env` file in the `heirloom-app/` directory. All variables are prefixed with `VITE_` so that Vite includes them in the client bundle at build time.
+
+## Create the env file
+
+```bash
+# Create env file in the frontend directory
+cp heirloom-app/.env.example heirloom-app/.env
+# Then edit the values
+```
+
+<Note>
+  Variables prefixed with `VITE_` are statically embedded into the build output by Vite. They are visible in the browser bundle — do not store private keys or secrets here.
+</Note>
+
+## Variables
+
+<ParamField path="VITE_NETWORK" type="string" default="testnet">
+  The Stacks network to connect to. Accepted values are `testnet` and `mainnet`. Controls which network the Stacks Connect wallet integration targets and which API endpoints the app uses for transaction broadcasting and lookups.
+</ParamField>
+
+<ParamField path="VITE_CONTRACT_ADDRESS" type="string" default="STZJWVYSKRYV1XBGS8BZ4F81E32RHBREQSE5WAJM">
+  The Stacks address of the account that deployed the vault contract. This is combined with `VITE_CONTRACT_NAME` to form the fully-qualified contract identifier used in all contract calls.
+</ParamField>
+
+<ParamField path="VITE_CONTRACT_NAME" type="string" default="heirloom-vault-v10">
+  The name of the deployed vault contract. Because Stacks does not allow overwriting deployed contracts, each new deployment requires a new name (e.g. `heirloom-vault-v11`). Update this value whenever you deploy a new contract version.
+</ParamField>
+
+<ParamField path="VITE_SBTC_CONTRACT" type="string" default="ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token">
+  The fully-qualified contract identifier for the sBTC token. Used when constructing deposit and claim transactions that involve sBTC assets.
+</ParamField>
+
+<ParamField path="VITE_USDCX_CONTRACT" type="string" default="ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx">
+  The fully-qualified contract identifier for the USDCx token. Used when constructing deposit and claim transactions that involve USDCx assets.
+</ParamField>
+
+## Full .env file examples
+
+<Tabs>
+  <Tab title="Testnet">
+    The default configuration, pointing to the current testnet deployment.
+
+    ```bash heirloom-app/.env
+    VITE_NETWORK=testnet
+    VITE_CONTRACT_ADDRESS=STZJWVYSKRYV1XBGS8BZ4F81E32RHBREQSE5WAJM
+    VITE_CONTRACT_NAME=heirloom-vault-v10
+    VITE_SBTC_CONTRACT=ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT.sbtc-token
+    VITE_USDCX_CONTRACT=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx
+    ```
+  </Tab>
+  <Tab title="Mainnet">
+    Update these values after deploying the contract to mainnet. Replace the contract address and name with your own deployment.
+
+    ```bash heirloom-app/.env
+    VITE_NETWORK=mainnet
+    VITE_CONTRACT_ADDRESS=<your-mainnet-deployer-address>
+    VITE_CONTRACT_NAME=heirloom-vault-v10
+    VITE_SBTC_CONTRACT=<mainnet-sbtc-contract-identifier>
+    VITE_USDCX_CONTRACT=<mainnet-usdcx-contract-identifier>
+    ```
+
+    <Warning>
+      Confirm the correct mainnet contract identifiers for sBTC and USDCx before deploying. Using wrong contract addresses will cause all vault transactions to fail.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Applying changes
+
+Changes to `.env` require restarting the dev server to take effect:
+
+```bash
+# Restart the dev server after editing .env
+npm run dev
+```
+
+For production builds, the variables are baked in at build time:
+
+```bash
+# Build with current .env values
+npm run build
+```
+
+## Related
+
+<Columns cols={2}>
+  <Card title="Deployment" icon="cloud-arrow-up" href="/development/deployment">
+    Deploy a new contract version and update these variables to point to it.
+  </Card>
+  <Card title="Prerequisites" icon="wrench" href="/development/prerequisites">
+    Install the tools needed before running the frontend.
+  </Card>
+</Columns>

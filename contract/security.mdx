@@ -1,0 +1,95 @@
+---
+title: "Security"
+description: "Security properties, access control, and known limitations of the Heirloom vault contract."
+---
+
+## Clarity's safety properties
+
+Heirloom is written in Clarity, which provides several security guarantees by design:
+
+**Interpreted, not compiled.** The source code stored on-chain is the exact code that executes. There is no intermediate bytecode compilation step that could introduce discrepancies between what you read and what runs.
+
+**Decidable.** Clarity is not Turing-complete. Every execution path terminates, making it possible to statically verify contract behavior before deployment. Tools like `clarinet check` can confirm that no code path panics or enters an infinite loop.
+
+**No reentrancy.** Clarity's execution model prevents reentrancy attacks. A contract cannot call back into itself, and inter-contract calls do not allow the callee to re-enter the caller mid-execution.
+
+**Post-condition enforcement.** Clarity 4's `restrict-assets?` and `with-ft` block types enforce exact token transfer amounts at the transaction level. If the contract attempts to transfer more or fewer tokens than declared, the transaction is rejected by the node before it is mined.
+
+---
+
+## Access control
+
+All access control is enforced via `tx-sender`. The contract checks the calling principal for every write operation.
+
+### Owner-only functions
+
+The following functions can only be called by the vault owner (the principal who called `create-vault`):
+
+- `heartbeat` — resets the liveness timer
+- `deposit-sbtc` / `deposit-usdcx` — fund the vault
+- `emergency-withdraw` — return all assets and close the vault
+- `update-heirs` — replace the heir list
+
+### Heir-only functions
+
+- `claim` — only callable by a principal registered in the `heirs` map, and only when the vault is in `claimable` state
+
+### Guardian-only functions
+
+- `guardian-pause` — only callable by the principal stored in the vault's `guardian` field, only once, and only during the grace period
+
+### What a guardian cannot do
+
+The guardian's role is strictly limited to a single deadline extension. A guardian cannot:
+
+- Withdraw assets
+- Claim on behalf of heirs
+- Send a heartbeat
+- Modify the heir list or any vault configuration
+
+<Note>
+If no guardian was set when the vault was created, the `guardian` field is `none` and `guardian-pause` will always return `ERR-NOT-GUARDIAN` for any caller.
+</Note>
+
+---
+
+## Asset protection
+
+The contract holds sBTC and USDCx on behalf of vault owners. Two Clarity 4 mechanisms protect these assets:
+
+**Deposits (`restrict-assets?` + `with-ft`):** When an owner deposits, the transaction declares the exact token amount being transferred. The runtime enforces this as a post-condition — the owner cannot be tricked into approving a larger transfer.
+
+**Claims and withdrawals (`as-contract?` + `with-ft`):** When the contract sends tokens to an heir or back to the owner, it uses `as-contract?` to act with the contract's own authority. The `with-ft` post-condition ensures the exact declared amount leaves the contract — no more, no less.
+
+---
+
+## Owner recovery options
+
+If an owner misses their heartbeat deadline, they have a recovery path as long as no heir has claimed yet:
+
+1. **Call `heartbeat`** — the contract allows `heartbeat` even in `claimable` state, provided `claims-count == 0`. This resets the timer and returns the vault to `active` state.
+2. **Call `emergency-withdraw`** — available at any time before the vault is distributed. Returns all assets to the owner immediately.
+
+---
+
+## Known limitations
+
+**Compromised owner wallet.** If the owner's private key is stolen, an attacker can:
+- Call `heartbeat` indefinitely, keeping the assets locked in the vault and preventing heirs from ever claiming.
+- Call `emergency-withdraw`, draining the vault to the attacker's address.
+
+This is inherent to any wallet-based custody system. Heirloom does not provide a social recovery or multi-sig mechanism for the owner role. Owners should protect their keys with hardware wallets and consider a guardian as a check against inactivity — but the guardian cannot prevent a malicious owner.
+
+**No partial heir updates.** `update-heirs` replaces the entire heir list atomically. There is no function to add or remove a single heir without resetting all splits.
+
+**Maximum 10 heirs.** The Clarity `list` type used in `heir-list` is bounded at 10 elements. This is a compile-time constraint that cannot be changed without deploying a new contract version.
+
+---
+
+## Contract immutability
+
+<Warning>
+Deployed Stacks contracts cannot be modified or overwritten. Once `heirloom-vault-v10` is on-chain, its code is permanent.
+</Warning>
+
+Future updates (bug fixes, new features) require deploying under a new contract name (e.g. `heirloom-vault-v11`). Existing vaults remain on the version they were created with and are unaffected by new deployments. The frontend determines which contract version to interact with via the configured contract address.

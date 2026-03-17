@@ -1,0 +1,76 @@
+---
+title: "Introduction"
+description: "Heirloom is a Bitcoin-native inheritance vault built on Stacks — trustless, non-custodial, automatic."
+---
+
+## The problem with Bitcoin inheritance
+
+An estimated 3–4 million BTC is permanently lost — much of it because owners died without a way to pass their holdings to anyone. Bitcoin's self-custody model is its greatest strength and its greatest inheritance liability: there is no bank to call, no account recovery, no legal mechanism that automatically transfers an on-chain asset to a beneficiary.
+
+Existing approaches have serious gaps:
+
+- **Seed phrase in a will** — Probate is public record. Anyone can read the seed before heirs take custody.
+- **Multi-sig with a lawyer** — Introduces a trusted third party and legal complexity across jurisdictions.
+- **Exchange custody** — Defeats the purpose of self-custody and adds counterparty risk.
+- **Fixed-date scripts** — Require predicting exactly when you will die, or locking funds indefinitely.
+
+## The core insight: liveness-based release
+
+Heirloom replaces fixed dates with a *liveness signal*. As long as you are alive and periodically send a heartbeat transaction, your vault stays locked and your assets remain under your control. When you stop sending heartbeats — because you are unable to, or have chosen not to — the protocol enters a grace period, then automatically makes the vault claimable by your designated heirs.
+
+This design has two properties that fixed-date approaches cannot achieve:
+
+1. **You never lock funds prematurely.** There is no date you have to predict.
+2. **Heirs never wait indefinitely.** Once the heartbeat stops, the protocol acts on its own.
+
+## How Heirloom works
+
+Heirloom has two components:
+
+**The smart contract** (`heirloom-vault.clar`) is a Clarity 4 program deployed on the Stacks blockchain as `heirloom-vault-v10`. It holds sBTC and USDCx, enforces heartbeat logic, manages the grace period, and distributes funds to heirs according to basis-point splits you configure at vault creation. The contract is fully on-chain — no off-chain oracles, no admin keys, no upgrade proxies.
+
+**The frontend app** is a React + Vite + TypeScript + Tailwind CSS application running at `http://localhost:5173`. It connects to your Leather or Xverse wallet and gives you a visual interface for creating vaults, sending heartbeats, monitoring vault state, and claiming inheritance.
+
+## Vault lifecycle at a glance
+
+Every vault moves through four states:
+
+| State | Meaning |
+|---|---|
+| **active** | Heartbeats are current. Funds are locked. |
+| **grace** | Heartbeat missed. A guardian can pause once for 30 days. |
+| **claimable** | Grace period elapsed. Heirs can claim their shares. |
+| **distributed** | All claims settled. Vault is closed. |
+
+You configure the heartbeat interval (1–365 days) and grace period (1–365 days) when you create the vault. You can also designate up to 10 heirs with percentage splits in basis points (10000 = 100%) and an optional guardian address.
+
+## Who Heirloom is for
+
+**Vault owners** are people who hold sBTC or USDCx and want to ensure those assets reach specific people after they are gone — without relying on a custodian, a lawyer, or a centralized service. You remain in complete control of your assets while you are active.
+
+**Heirs** do not need to do anything until it is time to claim. They connect their wallet to the Heirloom app, navigate to the Claim page, and call the contract once per asset type. The contract calculates their share from the basis-point split and transfers it directly to their address.
+
+## Why Stacks
+
+Heirloom is built on Stacks because Stacks offers capabilities that no other Bitcoin layer currently provides:
+
+- **Clarity** is a decidable, non-Turing-complete smart contract language. Every possible execution path is analyzable before deployment. There are no reentrancy bugs, no integer overflow surprises, and no hidden state transitions.
+- **sBTC** is a 1:1 Bitcoin-backed asset on Stacks. Vault owners deposit real Bitcoin value, not a synthetic approximation.
+- **Bitcoin finality** anchors every Stacks block to the Bitcoin chain. Vault state transitions are as final as Bitcoin transactions.
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Create your first vault and send your first heartbeat in under 10 minutes.
+  </Card>
+  <Card title="Heartbeat mechanism" icon="heart-pulse" href="/how-it-works/heartbeat">
+    Understand how the liveness signal works and what happens when it stops.
+  </Card>
+  <Card title="Contract overview" icon="file-code" href="/contract/overview">
+    Read the Clarity contract structure, entry points, and data model.
+  </Card>
+  <Card title="Prerequisites" icon="circle-check" href="/development/prerequisites">
+    Set up your local development environment to run or modify Heirloom.
+  </Card>
+</Columns>

@@ -1,0 +1,121 @@
+---
+title: "Guardian system"
+description: "How an optional trusted guardian can pause the inheritance countdown during the grace period."
+---
+
+A guardian is an optional trusted Stacks address you can designate when creating your vault. The guardian has one narrow power: they can extend your vault's deadline by 30 days if you miss a heartbeat and the vault enters the grace period.
+
+## What a guardian can do
+
+During the grace period, the guardian can call `guardian-pause(vault-owner)` to add 30 days to the effective deadline.
+
+```clarity GUARDIAN-PAUSE-BONUS constant
+;; 30 days in seconds
+(define-constant GUARDIAN-PAUSE-BONUS u2592000)
+```
+
+When the pause is applied:
+
+- The `guardian-pause-used` flag is set to `true` on the vault
+- The effective deadline becomes: `heartbeat-interval + grace-period + 2,592,000 seconds`
+- All state calculations immediately reflect the extended deadline
+- The vault may move back from `claimable` to `grace` if the extension pushes the deadline past the current elapsed time
+
+## What a guardian cannot do
+
+The guardian role is intentionally limited. A guardian **cannot**:
+
+- Withdraw any assets from the vault
+- Claim assets on behalf of heirs
+- Send a heartbeat (only the vault owner can)
+- Modify the heir list or splits
+- Change the vault configuration
+- Pause the vault more than once
+
+<Note>
+The guardian's only action is `guardian-pause()`. They have no access to your funds and cannot redirect inheritance to themselves.
+</Note>
+
+## Restrictions on the guardian pause
+
+| Restriction | Detail |
+|---|---|
+| Timing | Only callable during grace period (`elapsed >= heartbeat-interval` AND `elapsed < deadline`) |
+| Frequency | Once per vault lifetime (`guardian-pause-used` flag prevents reuse) |
+| Who can call it | Only the designated guardian address |
+| Effect duration | Permanent for that vault — the 30-day bonus is added to the deadline and does not reset |
+
+<Warning>
+The guardian pause can only be used **once**. If the vault re-enters grace after a recovered heartbeat, the pause cannot be used a second time. Plan accordingly when choosing your guardian.
+</Warning>
+
+## Use cases
+
+<Columns cols={2}>
+  <Card title="Hospitalization" icon="hospital">
+    You're admitted unexpectedly and cannot access your wallet. A trusted family member pauses the countdown, giving you 30 extra days to recover and send a heartbeat.
+  </Card>
+  <Card title="Extended travel" icon="plane">
+    You're in a region with no reliable internet access and miss your interval. Your guardian buys you time to reconnect.
+  </Card>
+  <Card title="Lost or compromised device" icon="mobile">
+    Your phone or hardware wallet is lost. The guardian extends the deadline while you recover your keys or set up a new device.
+  </Card>
+  <Card title="Incapacity" icon="user-clock">
+    A health event leaves you temporarily unable to act. A guardian who knows your situation can pause the vault while you recover.
+  </Card>
+</Columns>
+
+## Choosing a guardian
+
+Your guardian should be:
+
+- **Trusted**: they will know your vault is overdue, which signals your status to them
+- **Reachable**: they need to be able to respond quickly during the grace period
+- **Technically capable**: they must be able to send a Stacks transaction from their own wallet
+- **Not an heir**: while not technically prohibited, having a guardian who is also an heir creates a conflict of interest — they could choose not to pause in order to claim sooner
+
+<Tip>
+A good guardian is someone like a close family member, attorney, or financial advisor who is not named as an heir and who you trust to act in your interest.
+</Tip>
+
+## Setting a guardian
+
+The guardian is an optional field in the vault creation wizard. You can set it when you first create your vault.
+
+<Steps>
+  <Step title="Open the vault creation wizard">
+    From the Dashboard, click **Create Vault** to open the setup flow.
+  </Step>
+  <Step title="Enter the guardian address">
+    In the Guardian step, enter the Stacks address (`SP...`) of your chosen guardian. This field is optional — leave it blank if you do not want a guardian.
+  </Step>
+  <Step title="Confirm the configuration">
+    Review the guardian address before submitting. The guardian is set at vault creation and cannot be changed after the vault is deployed.
+  </Step>
+</Steps>
+
+<Warning>
+The guardian address is **set at creation and cannot be updated** after the vault is deployed. Choose carefully, and verify the address before confirming.
+</Warning>
+
+## Viewing guardian status
+
+The vault detail page on the Dashboard shows:
+
+- The guardian address (if set)
+- Whether the guardian pause has been used (`guardian-pause-used` flag)
+- The extended deadline (if the pause has been applied)
+
+If you are a guardian, you can look up the vault owner's address in the Dashboard to see the vault state and determine whether a pause is needed.
+
+## Continue reading
+
+<Columns cols={2}>
+  <Card title="The heartbeat mechanism" icon="heart" href="/how-it-works/heartbeat">
+    Learn how to keep your vault active with periodic on-chain check-ins.
+  </Card>
+  <Card title="Vault lifecycle" icon="rotate" href="/how-it-works/vault-lifecycle">
+    See the full state machine and what triggers each transition.
+  </Card>
+</Columns>
