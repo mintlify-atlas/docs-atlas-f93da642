@@ -1,0 +1,114 @@
+{
+  "projectType": "saas",
+  "projectName": "Heirloom",
+  "projectDescription": "A Bitcoin-native inheritance protocol built on Stacks that lets vault owners lock sBTC and USDCx, designate heirs with percentage splits, and automatically release assets to beneficiaries if the owner's heartbeat signal stops.",
+  "theme": "willow",
+  "primaryColor": "#8fc319",
+  "lightColor": "#293906",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "How It Works",
+            "pages": [
+              "how-it-works/heartbeat",
+              "how-it-works/vault-lifecycle",
+              "how-it-works/heirs-and-splits",
+              "how-it-works/guardian-system"
+            ]
+          },
+          {
+            "group": "Using the App",
+            "pages": [
+              "app/create-vault",
+              "app/dashboard",
+              "app/claim-inheritance",
+              "app/wallet-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Smart Contract",
+        "groups": [
+          {
+            "group": "Contract Reference",
+            "pages": [
+              "contract/overview",
+              "contract/data-model",
+              "contract/public-functions",
+              "contract/read-only-functions",
+              "contract/error-codes"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "contract/security",
+              "contract/token-references"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/prerequisites",
+              "development/environment-variables"
+            ]
+          },
+          {
+            "group": "Testing",
+            "pages": [
+              "development/testing"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "development/deployment"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Heartbeat-based liveness detection — vault owner signs periodic transactions to keep vault locked",
+    "Multi-heir support — up to 10 beneficiaries with basis-point percentage splits",
+    "Multi-asset vaults — sBTC (Bitcoin-backed) and USDCx (dollar-stable) in a single vault",
+    "Configurable grace period — buffer time after missed heartbeat before assets become claimable",
+    "Guardian system — optional trusted address that can pause the countdown once during grace",
+    "Emergency withdrawal — owner retains full control and can reclaim all assets at any time",
+    "Updateable beneficiaries — heirs and splits can be changed while vault is active",
+    "Trustless and non-custodial — no lawyers, no custodians, no seed phrase sharing",
+    "Computed vault state — state derived from timestamps on every read, always current",
+    "React frontend with Leather/Xverse wallet support"
+  ],
+  "publicApiSurface": [
+    "create-vault(heartbeat-interval, grace-period, heirs-data, guardian)",
+    "deposit-sbtc(amount)",
+    "deposit-usdcx(amount)",
+    "heartbeat()",
+    "claim(vault-owner)",
+    "emergency-withdraw()",
+    "guardian-pause(vault-owner)",
+    "update-heirs(new-heirs)",
+    "get-vault-status(owner)",
+    "get-heir-info(owner, heir)",
+    "get-heir-list(owner)"
+  ]
+}
